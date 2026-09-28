@@ -1,0 +1,32 @@
+name: Build DYS Portable
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Kodu İndir
+        uses: actions/checkout@v3
+
+      - name: Node.js Kur
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Bağımlılıkları Yükle
+        run: npm install
+
+      - name: Programı Paketle (Build)
+        run: npm run build
+
+      - name: Exe Dosyasını Sisteme Yükle
+        uses: actions/upload-artifact@v3
+        with:
+          name: NDYS-Portable
+          path: dist/NDYS.exe

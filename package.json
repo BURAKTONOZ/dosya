@@ -1,0 +1,28 @@
+{
+  "name": "ndys",
+  "version": "1.0.0",
+  "description": "Numarataj Şube Müdürlüğü Dosya Yönetim Sistemi",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --publish never"
+  },
+  "author": "BURAK TONOZ",
+  "build": {
+    "appId": "com.tonoz.ndys",
+    "productName": "Numarataj DYS",
+    "copyright": "Copyright © 2026 - TONOZ",
+    "win": {
+      "target": "portable",
+      "executableName": "NDYS",
+      "icon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "NDYS.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}

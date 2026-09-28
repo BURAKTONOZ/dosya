@@ -4,38 +4,73 @@ const fs = require('fs');
 
 let mainWindow;
 
+const DB_FILE = 'dys_database.json';
+const CAT_FILE = 'dys_categories.json';
+const LOCK_FILE = 'dys_database.lock';
+
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1400, height: 850, minWidth: 1100, minHeight: 768,
-        frame: false, transparent: false, backgroundColor: '#f0f4f8',
+        width: 1400, height: 850, minWidth: 1100, minHeight: 700,
+        frame: false, transparent: false, backgroundColor: '#f5eedd', show: false,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true, nodeIntegration: false
         }
     });
     mainWindow.loadFile('index.html');
+    mainWindow.once('ready-to-show', () => mainWindow.show());
 }
 
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 
-ipcMain.on('window-minimize', () => mainWindow.minimize());
-ipcMain.on('window-maximize', () => {
-    if (mainWindow.isMaximized()) mainWindow.unmaximize();
-    else mainWindow.maximize();
-});
-ipcMain.on('window-close', () => mainWindow.close());
+const winOf = (e) => BrowserWindow.fromWebContents(e.sender) || mainWindow;
+ipcMain.on('window-minimize', (e) => winOf(e).minimize());
+ipcMain.on('window-maximize', (e) => { const w = winOf(e); w.isMaximized() ? w.unmaximize() : w.maximize(); });
+ipcMain.on('window-close', (e) => winOf(e).close());
 
+/* ---------- Yardımcılar ---------- */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Atomik kilit: aynı anda yalnızca bir kişi yazabilir. 15 sn'den eski kilit (çökmüş program) otomatik temizlenir.
 async function acquireLock(archiveRoot) {
-    const lockPath = path.join(archiveRoot, 'dys_database.lock');
-    let retries = 0;
-    while (fs.existsSync(lockPath) && retries < 50) {
-        await new Promise(resolve => setTimeout(resolve, 100)); retries++;
+    const lockPath = path.join(archiveRoot, LOCK_FILE);
+    for (let i = 0; i < 100; i++) {
+        try { fs.closeSync(fs.openSync(lockPath, 'wx')); return lockPath; }
+        catch (e) {
+            if (e.code !== 'EEXIST') throw e;
+            try { if (Date.now() - fs.statSync(lockPath).mtimeMs > 15000) fs.unlinkSync(lockPath); } catch {}
+            await sleep(100);
+        }
     }
-    fs.writeFileSync(lockPath, 'locked'); return lockPath;
+    throw new Error('Veritabanı meşgul, lütfen tekrar deneyin.');
 }
-function releaseLock(lockPath) { if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath); }
+function releaseLock(lockPath) { try { if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath); } catch {} }
 
+// Önce geçici dosyaya yazıp sonra değiştirir: yarım kalan yazma veritabanını bozmaz
+function writeJson(file, data) {
+    const tmp = file + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tmp, file);
+}
+function readDb(archiveRoot) {
+    const dbPath = path.join(archiveRoot, DB_FILE);
+    return fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath, 'utf-8')) : [];
+}
+const safeFolder = (c) => (c ? c.replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ\s]/gi, '').trim() : '') || 'Genel Evrak';
+function makeFileName(year, docNo, title) {
+    const safeTitle = String(title).replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]/gi, '_').slice(0, 80);
+    const safeNo = String(docNo).replace(/[^a-zA-Z0-9]/gi, '-') || 'x';
+    return `${year}-${safeNo}-${safeTitle}-${Date.now()}.pdf`;
+}
+function moveFile(from, to) {
+    try { fs.renameSync(from, to); }
+    catch { fs.copyFileSync(from, to); fs.unlinkSync(from); }
+}
+// Yaklaşık benzersiz sayısal id (iki kullanıcı aynı milisaniyede kayıt yapsa bile çakışmaz)
+const newId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000);
+
+/* ---------- Klasör / versiyon ---------- */
 ipcMain.handle('check-folder', (event, folderPath) => {
     try { return fs.existsSync(folderPath); } catch { return false; }
 });
@@ -47,27 +82,9 @@ ipcMain.handle('check-version', (event, archiveRoot, appVersion) => {
             const data = JSON.parse(fs.readFileSync(versionPath, 'utf-8'));
             if (data.version > appVersion) return { ok: false, dbVer: data.version };
         }
-        fs.writeFileSync(versionPath, JSON.stringify({ version: appVersion })); return { ok: true };
-    } catch(e) { return { ok: true }; }
-});
-
-ipcMain.handle('get-categories', async (event, archiveRoot) => {
-    const catPath = path.join(archiveRoot, 'dys_categories.json');
-    if (!fs.existsSync(catPath)) {
-        const defaultCats = ["Genel Evrak", "İsimlendirme Kararları", "Encümen Kararları", "Gelen Evrak", "Giden Evrak"];
-        fs.writeFileSync(catPath, JSON.stringify(defaultCats, null, 2));
-        return defaultCats;
-    }
-    return JSON.parse(fs.readFileSync(catPath, 'utf-8'));
-});
-
-ipcMain.handle('save-categories', async (event, archiveRoot, categories) => {
-    try {
-        const lockPath = await acquireLock(archiveRoot);
-        try { fs.writeFileSync(path.join(archiveRoot, 'dys_categories.json'), JSON.stringify(categories, null, 2)); } 
-        finally { releaseLock(lockPath); }
-        return { success: true };
-    } catch(e) { return { success: false }; }
+        fs.writeFileSync(versionPath, JSON.stringify({ version: appVersion }));
+        return { ok: true };
+    } catch (e) { return { ok: true }; }
 });
 
 ipcMain.handle('select-folder', async () => {
@@ -80,87 +97,98 @@ ipcMain.handle('select-pdf', async () => {
     return result.filePaths[0] || null;
 });
 
+/* ---------- Kategoriler ---------- */
+ipcMain.handle('get-categories', async (event, archiveRoot) => {
+    const catPath = path.join(archiveRoot, CAT_FILE);
+    const defaultCats = ["Genel Evrak", "İsimlendirme Kararları", "Encümen Kararları", "Gelen Evrak", "Giden Evrak"];
+    try {
+        if (!fs.existsSync(catPath)) { writeJson(catPath, defaultCats); return defaultCats; }
+        return JSON.parse(fs.readFileSync(catPath, 'utf-8'));
+    } catch { return defaultCats; }
+});
+
+ipcMain.handle('save-categories', async (event, archiveRoot, categories) => {
+    let lockPath;
+    try {
+        lockPath = await acquireLock(archiveRoot);
+        writeJson(path.join(archiveRoot, CAT_FILE), categories);
+        return { success: true };
+    } catch (e) { return { success: false, error: e.message }; }
+    finally { if (lockPath) releaseLock(lockPath); }
+});
+
+/* ---------- Evraklar ---------- */
 ipcMain.handle('load-db', async (event, archivePath) => {
-    const dbPath = path.join(archivePath, 'dys_database.json');
-    if (!fs.existsSync(dbPath)) return [];
-    return JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
+    try { return readDb(archivePath); } catch { return []; }
 });
 
 ipcMain.handle('save-doc', async (event, data) => {
+    let lockPath, destPath;
     try {
         const { sourcePdf, archiveRoot, year, category, docDate, docNo, title, note } = data;
-        const safeCategory = category ? category.replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ\s]/gi, '').trim() : 'Genel Evrak';
-        
-        const destFolder = path.join(archiveRoot, year, safeCategory);
-        if (!fs.existsSync(destFolder)) fs.mkdirSync(destFolder, { recursive: true });
-        
-        const safeTitle = title.replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]/gi, '_');
-        const safeNo = docNo.replace(/[^a-zA-Z0-9]/gi, '-');
-        
-        const fileName = `${year}-${safeNo}-${safeTitle}-${Date.now()}.pdf`;
-        const destPath = path.join(destFolder, fileName);
+        lockPath = await acquireLock(archiveRoot);
+        const db = readDb(archiveRoot);
+
+        const destFolder = path.join(archiveRoot, String(year), safeFolder(category));
+        fs.mkdirSync(destFolder, { recursive: true });
+        const fileName = makeFileName(year, docNo, title);
+        destPath = path.join(destFolder, fileName);
         fs.copyFileSync(sourcePdf, destPath);
-        
-        const lockPath = await acquireLock(archiveRoot);
-        try {
-            const dbPath = path.join(archiveRoot, 'dys_database.json');
-            let db = [];
-            if (fs.existsSync(dbPath)) db = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
-            db.unshift({ id: Date.now(), year, category: safeCategory, docDate, docNo, title, note, fileName, filePath: destPath, dateAdded: new Date().toISOString() });
-            fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
-        } finally { releaseLock(lockPath); }
+
+        db.unshift({ id: newId(), year: String(year), category: category || 'Genel Evrak', docDate, docNo, title, note, fileName, filePath: destPath, dateAdded: new Date().toISOString() });
+        writeJson(path.join(archiveRoot, DB_FILE), db);
         return { success: true };
-    } catch (error) { return { success: false, error: error.message }; }
+    } catch (error) {
+        // Kayıt başarısızsa yetim PDF bırakma
+        try { if (destPath && fs.existsSync(destPath)) fs.unlinkSync(destPath); } catch {}
+        return { success: false, error: error.message };
+    } finally { if (lockPath) releaseLock(lockPath); }
 });
 
 ipcMain.handle('update-doc', async (event, data) => {
+    let lockPath;
     try {
-        const { id, sourcePdf, archiveRoot, year, category, oldYear, oldCategory, docDate, docNo, title, note, oldFilePath } = data;
-        let finalFilePath = oldFilePath;
-        let finalFileName = path.basename(oldFilePath);
-        const safeCategory = category ? category.replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ\s]/gi, '').trim() : 'Genel Evrak';
+        const { id, sourcePdf, archiveRoot, year, category, docDate, docNo, title, note, oldFilePath } = data;
+        lockPath = await acquireLock(archiveRoot);
+        const db = readDb(archiveRoot);
+        const index = db.findIndex((d) => d.id === id);
+        if (index === -1) throw new Error('Kayıt bulunamadı (başka biri silmiş olabilir).');
+        const old = db[index];
+
+        let finalFilePath = oldFilePath || old.filePath;
+        let finalFileName = path.basename(finalFilePath);
+        const destFolder = path.join(archiveRoot, String(year), safeFolder(category));
 
         if (sourcePdf) {
-            const destFolder = path.join(archiveRoot, year, safeCategory);
-            if (!fs.existsSync(destFolder)) fs.mkdirSync(destFolder, { recursive: true });
-            const safeTitle = title.replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]/gi, '_');
-            const safeNo = docNo.replace(/[^a-zA-Z0-9]/gi, '-');
-            finalFileName = `${year}-${safeNo}-${safeTitle}-${Date.now()}.pdf`;
+            fs.mkdirSync(destFolder, { recursive: true });
+            finalFileName = makeFileName(year, docNo, title);
             finalFilePath = path.join(destFolder, finalFileName);
             fs.copyFileSync(sourcePdf, finalFilePath);
-            if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
-        } else if (year !== oldYear || category !== oldCategory) {
-            const destFolder = path.join(archiveRoot, year, safeCategory);
-            if (!fs.existsSync(destFolder)) fs.mkdirSync(destFolder, { recursive: true });
-            finalFilePath = path.join(destFolder, finalFileName);
-            if (fs.existsSync(oldFilePath)) fs.renameSync(oldFilePath, finalFilePath);
+            if (fs.existsSync(old.filePath)) fs.unlinkSync(old.filePath);
+        } else if (String(year) !== String(old.year) || safeFolder(category) !== safeFolder(old.category)) {
+            fs.mkdirSync(destFolder, { recursive: true });
+            const target = path.join(destFolder, finalFileName);
+            if (fs.existsSync(finalFilePath)) moveFile(finalFilePath, target);
+            finalFilePath = target;
         }
 
-        const lockPath = await acquireLock(archiveRoot);
-        try {
-            const dbPath = path.join(archiveRoot, 'dys_database.json');
-            let db = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
-            const index = db.findIndex(d => d.id === id);
-            if(index !== -1) {
-                db[index] = { ...db[index], year, category: safeCategory, docDate, docNo, title, note, fileName: finalFileName, filePath: finalFilePath };
-                fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
-            }
-        } finally { releaseLock(lockPath); }
+        db[index] = { ...old, year: String(year), category: category || 'Genel Evrak', docDate, docNo, title, note, fileName: finalFileName, filePath: finalFilePath };
+        writeJson(path.join(archiveRoot, DB_FILE), db);
         return { success: true };
     } catch (error) { return { success: false, error: error.message }; }
+    finally { if (lockPath) releaseLock(lockPath); }
 });
 
 ipcMain.handle('delete-doc', async (event, data) => {
+    let lockPath;
     try {
         const { id, filePath, archiveRoot } = data;
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        const lockPath = await acquireLock(archiveRoot);
-        try {
-            const dbPath = path.join(archiveRoot, 'dys_database.json');
-            let db = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
-            db = db.filter(d => d.id !== id);
-            fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
-        } finally { releaseLock(lockPath); }
+        lockPath = await acquireLock(archiveRoot);
+        // Önce kaydı sil, sonra dosyayı: yarım kalırsa kayıtsız PDF kalır, PDF'siz kayıt kalmaz
+        const db = readDb(archiveRoot).filter((d) => d.id !== id);
+        writeJson(path.join(archiveRoot, DB_FILE), db);
+        try { if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
         return { success: true };
     } catch (error) { return { success: false, error: error.message }; }
+    finally { if (lockPath) releaseLock(lockPath); }
 });

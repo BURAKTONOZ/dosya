@@ -1,385 +1,240 @@
 <!DOCTYPE html>
-<html lang="tr" data-theme="light">
+<html lang="tr">
 <head>
 <meta charset="UTF-8">
 <title>DYS Numarataj</title>
+<script src="node_modules/pdfjs-dist/build/pdf.js"></script>
+<script src="node_modules/tesseract.js/dist/tesseract.min.js"></script>
 <style>
-:root{--paper:#f5eedd;--paper2:#fbf7ec;--card:#fffdf6;--ink:#2b2a26;--muted:#7b7566;--line:#e0d5ba;--accent:#1f5f5b;--accent2:#2f8a83;--stamp:#b3261e;--shadow:0 2px 0 #e6dcc2,0 10px 24px rgba(90,70,30,.12);--serif:Georgia,'Palatino Linotype',serif;--sans:'Segoe UI',system-ui,sans-serif}
-[data-theme=dark]{--paper:#1d1b18;--paper2:#252220;--card:#2b2825;--ink:#f1e9d6;--muted:#a89f8a;--line:#3d3830;--accent:#e2b866;--accent2:#f0cd84;--stamp:#ef6f66;--shadow:0 2px 0 #14120f,0 10px 24px rgba(0,0,0,.4)}
-*{margin:0;padding:0;box-sizing:border-box;font-family:var(--sans)}
-body{height:100vh;overflow:hidden;display:flex;flex-direction:column;color:var(--ink);background:var(--paper);background-image:radial-gradient(rgba(120,90,30,.07) 1px,transparent 1px),radial-gradient(rgba(120,90,30,.05) 1px,transparent 1px);background-size:22px 22px,13px 13px;background-position:0 0,7px 9px;transition:background-color .5s,color .5s}
-button{font-family:inherit;cursor:pointer}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+:root{--navy:#1f3a5f;--navy2:#2d5288;--bg:#eceff3;--card:#fff;--line:#cfd6df;--ink:#1c2530;--mut:#66727f;--red:#a4262c;--ok:#237a3b}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Calibri,sans-serif}
+body{height:100vh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:var(--ink);font-size:14px}
+button,select{font-family:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--navy2);outline-offset:1px}
 .hidden{display:none!important}
-mark{background:#ffd95a;color:#222;border-radius:3px;padding:0 2px}
-/* splash */
-.splash{position:fixed;inset:0;z-index:10000;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .7s}
-.splash .door{font-size:72px;animation:door 2.4s ease-in-out infinite}
-@keyframes door{0%,100%{transform:rotate(-6deg) scale(1)}50%{transform:rotate(6deg) scale(1.08)}}
-.splash h1{font-family:var(--serif);font-size:34px;margin:14px 0 6px}
-.splash p{color:var(--muted);font-size:14px;margin-bottom:18px}
-.bar{width:320px;height:6px;background:var(--line);border-radius:6px;overflow:hidden}
-.bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:6px;transition:width .7s}
-.copy{position:absolute;bottom:18px;right:26px;font-size:11px;color:var(--muted)}
-/* toasts */
-#toasts{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:9999}
-.toast{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:12px;padding:12px 18px;box-shadow:var(--shadow);font-weight:600;font-size:14px;transform:translateX(120%);transition:transform .4s cubic-bezier(.2,.9,.3,1.2)}
-.toast.show{transform:none}.toast.error{border-left-color:var(--stamp)}.toast.info{border-left-color:#d9932b}
-/* titlebar */
-.titlebar{height:60px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);background:var(--paper2);-webkit-app-region:drag;z-index:50}
-.brand{display:flex;align-items:center;gap:12px;padding-left:20px}
-.logo{width:40px;height:40px;border-radius:12px;background:var(--accent);display:grid;place-items:center;font-size:21px;box-shadow:0 3px 0 rgba(0,0,0,.2)}
-.brand b{display:block;font-family:var(--serif);font-size:16px}.brand span{font-size:12px;color:var(--muted)}
-.ctrls{display:flex;height:100%;-webkit-app-region:no-drag}
-.win{width:50px;border:0;background:none;color:var(--muted);font-size:15px;transition:.2s}
-.win:hover{background:var(--line);color:var(--ink)}.win.x:hover{background:var(--stamp);color:#fff}
-.app{flex:1;display:flex;overflow:hidden}
-/* dock */
-.dock{width:104px;border-right:1px solid var(--line);background:var(--paper2);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:8px}
-.add{width:58px;height:58px;border-radius:18px;border:0;background:var(--accent);color:#fff;font-size:30px;box-shadow:0 4px 0 rgba(0,0,0,.25);transition:.25s}
-.add:hover{transform:translateY(-3px) rotate(90deg)}
-.quick{display:flex;flex-direction:column;gap:6px;width:100%;padding:0 10px;margin-top:8px}
-.tab{border:1px solid transparent;background:none;color:var(--muted);border-radius:12px;padding:8px 4px;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:2px;transition:.2s}
-.tab em{font-style:normal;font-size:19px}
-.tab:hover{background:var(--line);color:var(--ink)}
-.tab.on{background:var(--card);color:var(--accent);border-color:var(--line);box-shadow:var(--shadow)}
-.sep{width:36px;height:1px;background:var(--line);margin:6px 0}
-.years{flex:1;overflow-y:auto;width:100%;padding:0 10px;display:flex;flex-direction:column;gap:6px}
-.years::-webkit-scrollbar,.list::-webkit-scrollbar{width:6px}.list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
-.year{position:relative;border:1px solid var(--line);background:var(--card);border-radius:4px 14px 10px 10px;padding:9px 4px 7px;font-weight:700;font-size:13px;color:var(--ink);transition:.25s}
-.year small{display:block;font-size:10px;font-weight:600;color:var(--muted)}
-.year:hover{transform:translateX(4px)}
-.year.on{background:var(--accent);color:#fff;border-color:var(--accent);transform:translateX(8px)}
-.year.on small{color:#e6f2f0}
-.dockbtns{display:flex;gap:6px}
-.sm{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:18px;transition:.3s}
-.sm:hover{transform:rotate(25deg) scale(1.1)}
-/* main */
-.main{flex:1;display:flex;flex-direction:column;min-width:0;transition:.4s}
-.app.open .main{flex:0 0 440px;border-right:1px solid var(--line)}
-.stats{display:flex;gap:12px;padding:18px 28px 0}
-.stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
-.stat em{font-style:normal;font-size:26px}.stat b{font-family:var(--serif);font-size:22px;display:block;line-height:1.1}.stat span{font-size:12px;color:var(--muted)}
-.app.open .stats{display:none}
-.searchrow{display:flex;gap:10px;padding:16px 28px 8px}
-.search{flex:1;display:flex;align-items:center;gap:10px;background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:0 16px;transition:.25s;box-shadow:var(--shadow)}
-.search:focus-within{border-color:var(--accent)}
-.search input{flex:1;border:0;outline:0;background:none;color:var(--ink);font-size:15px;padding:14px 0}
-.search kbd{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 6px}
-.ctl{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:0 14px;font-size:14px;font-weight:600;box-shadow:var(--shadow)}
-.ctl:hover{border-color:var(--accent)}
-.chips{display:flex;flex-wrap:wrap;gap:8px;padding:4px 28px 6px}
-.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:20px;padding:6px 13px;font-size:13px;font-weight:600;transition:.2s}
-.chip:hover{transform:translateY(-2px)}
-.chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-.found{padding:2px 30px 8px;font-size:13px;color:var(--muted)}
-.list{flex:1;overflow-y:auto;padding:4px 28px 28px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:20px;padding-top:6px}
-.app.open .grid,.grid.rows{display:flex;flex-direction:column;gap:14px}
-/* file card */
-.doc{position:relative;background:var(--card);border:1px solid var(--line);border-radius:6px 16px 16px 16px;padding:20px 20px 16px 26px;cursor:pointer;box-shadow:var(--shadow);transition:transform .3s cubic-bezier(.2,.9,.3,1.3),box-shadow .3s;overflow:hidden}
-.doc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:8px;background:var(--c)}
-.doc::after{content:"";position:absolute;top:0;right:22px;width:44px;height:14px;background:var(--c);opacity:.22;border-radius:0 0 8px 8px}
-.doc:hover{transform:translateY(-6px) rotate(-.4deg)}
-.doc.active{outline:2px solid var(--accent);transform:translateY(-3px)}
-.dh{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
-.seal{border:2px solid var(--stamp);color:var(--stamp);border-radius:8px;padding:4px 10px;font-weight:800;font-size:14px;transform:rotate(-3deg);font-family:var(--serif);background:rgba(179,38,30,.05)}
-.cal{text-align:center;background:var(--paper2);border:1px solid var(--line);border-radius:10px;min-width:54px;overflow:hidden;font-size:11px}
-.cal i{display:block;background:var(--c);color:#fff;font-style:normal;font-weight:700;padding:1px 6px}.cal b{display:block;font-size:18px;font-family:var(--serif);line-height:1.2}.cal span{display:block;color:var(--muted);padding-bottom:2px}
-.dt{font-family:var(--serif);font-size:18px;font-weight:700;line-height:1.35;margin-bottom:10px}
-.cat{display:inline-flex;gap:6px;align-items:center;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--ink);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;margin-bottom:10px}
-.note{font-size:13.5px;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.acts{display:flex;gap:6px;margin-top:12px;max-height:0;opacity:0;overflow:hidden;transition:.3s}
-.doc:hover .acts{max-height:40px;opacity:1}
-.acts button{border:1px solid var(--line);background:var(--paper2);color:var(--ink);border-radius:10px;padding:5px 10px;font-size:12px;font-weight:600}
-.acts button:hover{border-color:var(--accent);color:var(--accent)}
-.star{position:absolute;top:10px;right:10px;border:0;background:none;font-size:18px;filter:grayscale(1) opacity(.4);transition:.3s}
-.star.on{filter:none;animation:pop .4s}
-@keyframes pop{50%{transform:scale(1.5) rotate(20deg)}}
-.rows .doc{padding:14px 20px 12px 26px}.rows .note{-webkit-line-clamp:1}
-.empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--muted)}
-.empty em{font-style:normal;font-size:64px;display:block;animation:door 3s ease-in-out infinite}
-.empty b{font-family:var(--serif);font-size:20px;color:var(--ink);display:block;margin:8px 0 4px}
-/* viewer */
-.viewer{width:0;opacity:0;display:flex;flex-direction:column;background:var(--paper2);transition:.45s;overflow:hidden}
+mark{background:#ffe27a;color:#000;padding:0 1px}
+.splash{position:fixed;inset:0;z-index:10000;background:var(--navy);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s}
+.splash h1{font-size:30px;font-weight:600;letter-spacing:.5px}.splash p{margin:8px 0 18px;color:#b8c7dc;font-size:13px}
+.bar{width:300px;height:4px;background:rgba(255,255,255,.2)}.bar i{display:block;height:100%;width:0;background:#fff;transition:width .5s}
+.copy{position:absolute;bottom:16px;font-size:11px;color:#8ea3c0}
+#toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:9999}
+.toast{background:#fff;border:1px solid var(--line);border-left:4px solid var(--navy);padding:10px 16px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.15);opacity:0;transform:translateY(8px);transition:.25s}
+.toast.show{opacity:1;transform:none}.toast.error{border-left-color:var(--red)}.toast.info{border-left-color:#b7791f}
+.title{height:36px;background:var(--navy);color:#fff;display:flex;justify-content:space-between;align-items:center;-webkit-app-region:drag;flex-shrink:0}
+.title .t{padding-left:14px;font-size:12.5px;display:flex;gap:10px}.title .t b{font-weight:600}.title .t span{color:#a9bbd6}
+.ctl{display:flex;height:100%;-webkit-app-region:no-drag}
+.win{width:46px;height:36px;border:0;background:none;color:#fff;font:10px 'Segoe MDL2 Assets','Segoe UI Symbol',sans-serif}
+.win:hover{background:rgba(255,255,255,.15)}.win.x:hover{background:#e81123}
+.app{flex:1;display:flex;min-height:0}
+.dock{width:150px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:14px 10px;gap:10px}
+.add{background:var(--navy);color:#fff;border:0;padding:11px;font-size:14px;font-weight:600;border-radius:3px}.add:hover{background:var(--navy2)}
+.yl{font-size:12px;color:var(--mut);margin-top:6px;padding-left:4px}
+.years{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.y{display:flex;justify-content:space-between;border:0;background:none;padding:9px 10px;text-align:left;font-size:13.5px;border-left:3px solid transparent;color:var(--ink)}
+.y span{color:var(--mut);font-size:12px}.y:hover{background:var(--bg)}.y.on{background:#e3eaf4;border-left-color:var(--navy);font-weight:600}
+.set{border:1px solid var(--line);background:#fff;padding:9px;border-radius:3px;font-size:13px}.set:hover{background:var(--bg)}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.app.open .main{flex:0 0 430px;border-right:1px solid var(--line)}
+.sr{display:flex;gap:8px;padding:16px 22px 8px;flex-wrap:wrap}
+.search{flex:1;min-width:200px;display:flex;background:#fff;border:1px solid var(--line);border-radius:3px}
+.search:focus-within{border-color:var(--navy2);box-shadow:0 0 0 2px rgba(45,82,136,.18)}
+.search input{flex:1;border:0;outline:0;background:none;padding:10px 12px;font-size:14px}
+.sel{border:1px solid var(--line);background:#fff;padding:0 10px;height:40px;border-radius:3px;font-size:13px;color:var(--ink)}
+.app.open .sel.opt{display:none}
+.found{padding:2px 24px 8px;font-size:12.5px;color:var(--mut)}
+.list{flex:1;overflow-y:auto;padding:0 22px 22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
+.app.open .grid{display:flex;flex-direction:column}
+.doc{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--navy);padding:14px 16px;cursor:pointer;transition:box-shadow .2s,border-color .2s}
+.doc:hover{box-shadow:0 4px 14px rgba(31,58,95,.16)}.doc.active{border-color:var(--navy2);box-shadow:0 0 0 2px var(--navy2)}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+.no{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut)}
+.no b{background:var(--navy);color:#fff;padding:3px 10px;font-size:14px;font-weight:600;letter-spacing:.3px;border-radius:2px}
+.dt{text-align:right;border-right:3px solid var(--navy);padding-right:9px;line-height:1.3}
+.dt b{display:block;font-size:14px;font-weight:600}.dt span{font-size:11.5px;color:var(--mut)}
+.subj{font-size:15.5px;font-weight:600;line-height:1.4;margin-bottom:6px}
+.cat{font-size:12px;color:var(--navy2);font-weight:600;margin-bottom:6px}
+.note{font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hit{margin-top:8px;font-size:12px;color:var(--ok);font-weight:600;border-top:1px dashed var(--line);padding-top:6px}
+.empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--mut)}.empty b{display:block;font-size:17px;color:var(--ink);margin-bottom:4px}
+.viewer{width:0;opacity:0;display:flex;flex-direction:column;background:#fff;transition:opacity .3s;overflow:hidden}
 .app.open .viewer{flex:1;width:auto;opacity:1}
-.vh{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--line)}
-.vh h3{font-family:var(--serif);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vh{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.vh h3{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .vb{display:flex;gap:6px;flex-shrink:0}
-.vb button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;transition:.2s}
-.vb button:hover{transform:translateY(-2px);border-color:var(--accent)}.vb .del:hover{border-color:var(--stamp);color:var(--stamp)}
-.vbody{flex:1;display:flex;min-height:0}
-iframe{border:0;background:#fff}#pdfFrame{flex:1;height:100%}
-.info{width:0;overflow:hidden;background:var(--card);border-left:1px solid var(--line);transition:.35s}
-.info.on{width:260px;padding:20px}
-.info h4{font-family:var(--serif);margin:0 0 4px}.info p{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5;word-break:break-word}
-.app.full .main,.app.full .dock{display:none}
-/* overlays / modals */
-.ov{position:fixed;top:60px;left:0;right:0;bottom:0;z-index:1000;background:rgba(40,30,10,.45);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;transition:.3s}
+.b{border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 14px;font-size:13px;border-radius:3px}.b:hover{background:var(--bg)}
+.b.p{background:var(--navy);border-color:var(--navy);color:#fff}.b.p:hover{background:var(--navy2)}
+.b.d{color:var(--red);border-color:#e3b9bb}.b.d:hover{background:#fbeeee}
+iframe{border:0;background:#fff;flex:1;width:100%}
+.ov{position:fixed;top:36px;left:0;right:0;bottom:0;z-index:1000;background:rgba(20,30,45,.5);display:flex;align-items:center;justify-content:center;transition:opacity .2s}
 .ov.hidden{display:flex!important;opacity:0;pointer-events:none}
-.ov.hidden>*{transform:scale(.92) translateY(16px)}.ov>*{transition:.4s cubic-bezier(.2,.9,.3,1.2)}
-.box{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:34px;width:440px;box-shadow:0 30px 60px rgba(0,0,0,.35);text-align:center}
-.box h2{font-family:var(--serif);margin-bottom:10px}.box .ic{font-size:46px;display:block;margin-bottom:10px;animation:door 2.5s infinite}
-.box .msg{color:var(--muted);line-height:1.6;margin-bottom:22px;font-size:14px}
-.btn{border:0;border-radius:12px;padding:12px 22px;font-weight:700;font-size:14px;transition:.2s}
-.btn:hover{transform:translateY(-2px)}
-.b-ok{background:var(--accent);color:#fff}.b-no{background:var(--paper2);color:var(--ink);border:1px solid var(--line)}.b-red{background:var(--stamp);color:#fff}
-.full-m{display:flex;width:92vw;height:88vh;max-width:1600px;background:var(--card);border-radius:22px;overflow:hidden;border:1px solid var(--line)}
-.fside{width:420px;padding:30px;display:flex;flex-direction:column;overflow-y:auto;border-right:1px solid var(--line);background:var(--paper2);text-align:left}
-.fh{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}.fh h2{font-family:var(--serif);font-size:24px}
-.x{border:1px solid var(--line);background:var(--card);color:var(--ink);width:38px;height:38px;border-radius:12px;font-size:22px;transition:.3s}.x:hover{transform:rotate(90deg);color:var(--stamp)}
-.fc{display:flex;flex-direction:column;gap:16px;margin-bottom:auto}
-.row{display:flex;gap:12px}.g{display:flex;flex-direction:column;gap:6px;flex:1}
-.g label{font-size:13px;font-weight:700;color:var(--muted)}
-.fi{width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font-size:15px;outline:0;transition:.2s}
-.fi:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
-textarea.fi{height:120px;resize:none}
-[data-theme=dark] .fi{color-scheme:dark}
-.fa{display:flex;justify-content:flex-end;gap:10px;padding-top:20px;margin-top:20px;border-top:1px solid var(--line)}
-.pside{flex:1;display:flex;align-items:center;justify-content:center;background:var(--paper)}
-.pside iframe{width:100%;height:100%}
-.drop{width:80%;max-width:560px;height:300px;border:3px dashed var(--accent);border-radius:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:.3s;background:var(--paper2)}
-.drop:hover,.drop.over{transform:scale(1.03);background:var(--card)}
-.drop em{font-style:normal;font-size:70px;transition:.3s}.drop.over em{transform:translateY(-14px) scale(1.1)}
-.drop b{font-family:var(--serif);font-size:22px;color:var(--accent);margin:8px 0 4px}.drop span{color:var(--muted);font-size:14px}
-.catbox{max-height:170px;overflow-y:auto;margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:6px;text-align:left}
-.ci{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;font-weight:600;font-size:14px;border-radius:8px}
-.ci:hover{background:var(--paper2)}.ci button{border:0;background:none;color:var(--stamp);font-size:14px}
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.box{background:#fff;width:440px;border-top:4px solid var(--navy);box-shadow:0 20px 50px rgba(0,0,0,.35);padding:26px}
+.box h2{font-size:18px;font-weight:600;margin-bottom:10px}.msg{color:var(--mut);line-height:1.6;margin-bottom:20px;font-size:13.5px}
+.acts{display:flex;justify-content:flex-end;gap:8px}
+.fm{display:flex;width:92vw;height:88vh;max-width:1600px;background:#fff;border-top:4px solid var(--navy);box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.side{width:400px;padding:24px;display:flex;flex-direction:column;overflow-y:auto;border-right:1px solid var(--line);background:#f7f9fb}
+.fh{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.fh h2{font-size:18px;font-weight:600}
+.x{border:0;background:none;font-size:24px;color:var(--mut);width:32px;height:32px}.x:hover{color:var(--red)}
+.fc{display:flex;flex-direction:column;gap:14px;margin-bottom:auto}
+.row{display:flex;gap:10px}.g{display:flex;flex-direction:column;gap:5px;flex:1}.g label{font-size:12.5px;font-weight:600;color:var(--mut)}
+.fi{width:100%;padding:10px 12px;border:1px solid var(--line);background:#fff;font-size:14px;outline:0;border-radius:3px;color:var(--ink)}
+.fi:focus{border-color:var(--navy2);box-shadow:0 0 0 2px rgba(45,82,136,.18)}
+textarea.fi{height:110px;resize:none}
+.fa{display:flex;justify-content:flex-end;gap:8px;padding-top:16px;margin-top:16px;border-top:1px solid var(--line)}
+.pside{flex:1;display:flex;align-items:center;justify-content:center;background:#e4e8ee}.pside iframe{height:100%}
+.drop{width:75%;max-width:520px;height:260px;border:2px dashed var(--navy2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:#fff;transition:.2s}
+.drop:hover,.drop.over{background:#eaf0f9}.drop b{font-size:18px;color:var(--navy);margin-bottom:4px}.drop span{color:var(--mut);font-size:13px}
+.cb{max-height:150px;overflow-y:auto;margin-top:8px;border:1px solid var(--line)}
+.ci{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;font-size:13.5px;border-bottom:1px solid var(--bg)}.ci button{border:0;background:none;color:var(--red);font-size:13px}
+.txm{width:820px;max-width:92vw;height:80vh;display:flex;flex-direction:column}
+.txm textarea{flex:1;width:100%;resize:none;font:13px/1.55 Consolas,'Courier New',monospace;padding:12px;border:1px solid var(--line);outline:0}
+#ocr{position:fixed;left:160px;bottom:14px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--navy2);padding:8px 14px;font-size:12.5px;z-index:900;box-shadow:0 4px 12px rgba(0,0,0,.15)}
 </style>
 </head>
 <body>
-<div id="splash" class="splash">
-  <div class="door">🗄️</div><h1>DYS Numarataj</h1><p id="sText">Arşiv dolapları açılıyor…</p>
-  <div class="bar"><i id="sBar"></i></div><div class="copy">Copyright © 2026 TONOZ</div>
-</div>
-<div id="toasts"></div>
+<div id="splash" class="splash"><h1>DYS Numarataj</h1><p id="sText">Sistem başlatılıyor…</p><div class="bar"><i id="sBar"></i></div><div class="copy">Copyright © 2026 TONOZ · v2.1.0</div></div>
+<div id="toasts"></div><div id="ocr" class="hidden"></div>
 
-<div class="ov hidden" id="dlg"><div class="box">
-  <span class="ic" id="dIcon">🔔</span><h2 id="dTitle">Bilgi</h2><div class="msg" id="dMsg"></div>
-  <div style="display:flex;gap:10px;justify-content:center"><button class="btn b-no" id="dNo">İptal</button><button class="btn b-ok" id="dOk" style="min-width:130px">Tamam</button></div>
+<div class="ov hidden" id="dlg"><div class="box"><h2 id="dT"></h2><div class="msg" id="dM"></div><div class="acts"><button class="b" id="dNo">İptal</button><button class="b p" id="dOk">Tamam</button></div></div></div>
+
+<div class="title"><div class="t"><b>Numarataj Şube Müdürlüğü</b><span>Dosya Yönetim Sistemi · v2.1.0</span></div>
+<div class="ctl"><button class="win" onclick="window.electronAPI.minimizeApp()">&#xE921;</button><button class="win" onclick="window.electronAPI.maximizeApp()">&#xE922;</button><button class="win x" onclick="window.electronAPI.closeApp()">&#xE8BB;</button></div></div>
+
+<div class="ov hidden" id="setup"><div class="box"><h2>Ağ bağlantısı gerekli</h2><div class="msg"><b>DYS ARŞİV</b> adlı ortak klasörü seçin.</div><div class="acts"><button class="b p" onclick="selectArchiveFolder()">Klasörü seç ve bağlan</button></div></div></div>
+<div class="ov hidden" id="verErr" style="z-index:10001"><div class="box" style="border-top-color:var(--red)"><h2 style="color:var(--red)">Erişim engellendi</h2><div class="msg">Arşiv daha yeni bir sürümle çalışıyor. Veri güvenliği için girişiniz engellendi.<br><br><b>Eski sürümü silip güncel sürümü yükleyin.</b></div><div class="acts"><button class="b p" onclick="window.electronAPI.closeApp()">Uygulamayı kapat</button></div></div></div>
+
+<div class="ov hidden" id="settings"><div class="box" style="width:520px">
+<div class="fh"><h2>Sistem ayarları</h2><button class="x" onclick="hide('settings')">&times;</button></div>
+<div class="g"><label>Ağ klasörü</label><div style="display:flex;gap:8px"><input id="curPath" class="fi" readonly><button class="b" onclick="selectArchiveFolder()">Değiştir</button></div></div>
+<div class="g" style="margin-top:18px"><label>Evrak kategorileri</label><div style="display:flex;gap:8px"><input id="newCat" class="fi" placeholder="Yeni kategori" onkeydown="if(event.key==='Enter')addNewCategory()"><button class="b p" onclick="addNewCategory()">Ekle</button></div><div class="cb" id="catBox"></div></div>
+<div class="g" style="margin-top:18px"><label>PDF metin taraması</label><div style="display:flex;gap:8px;align-items:center"><button class="b" onclick="scanAll()">Okunmamış tüm evrakları tara</button><span id="scanInfo" style="font-size:12.5px;color:var(--mut)"></span></div></div>
 </div></div>
 
-<div class="titlebar">
-  <div class="brand"><div class="logo">🏛️</div><div><b>Numarataj Şube Müdürlüğü</b><span>Dosya Yönetim Sistemi (DYS)</span></div></div>
-  <div class="ctrls">
-    <button class="win" onclick="window.electronAPI.minimizeApp()" title="Küçült">&#8211;</button>
-    <button class="win" onclick="window.electronAPI.maximizeApp()" title="Büyüt">&#9723;</button>
-    <button class="win x" onclick="window.electronAPI.closeApp()" title="Kapat">&#10005;</button>
-  </div>
-</div>
-
-<div class="ov hidden" id="setup"><div class="box">
-  <span class="ic">🔌</span><h2>Ağ bağlantısı gerekli</h2>
-  <div class="msg">Ağ üzerindeki <b style="color:var(--stamp)">DYS ARŞİV</b> adlı ortak klasörü seçin.</div>
-  <button class="btn b-ok" style="width:100%" onclick="selectArchiveFolder()">📁 Klasörü seç ve bağlan</button>
+<div class="ov hidden" id="upload"><div class="fm">
+<div class="side"><div class="fh"><h2 id="mTitle">Yeni evrak girişi</h2><button class="x" onclick="closeModal()">&times;</button></div>
+<div class="fc"><div class="row"><div class="g"><label>Evrak tarihi</label><input type="date" id="fDate" class="fi"></div><div class="g"><label>Evrak no</label><input id="fNo" class="fi" placeholder="2026/145"></div></div>
+<div class="g"><label>Kategori</label><select id="fCat" class="fi"></select></div>
+<div class="g"><label>Konu özeti</label><input id="fTitle" class="fi"></div>
+<div class="g"><label>Notlar</label><textarea id="fNote" class="fi"></textarea></div></div>
+<div class="fa"><button class="b" onclick="closeModal()">İptal</button><button class="b p" id="saveBtn" onclick="saveDocument()">Kaydet</button></div></div>
+<div class="pside" id="pside"><div class="drop" id="drop" onclick="pickPdf()"><b>PDF seçmek için tıklayın</b><span>veya dosyayı bu alana bırakın</span></div><iframe id="mFrame" class="hidden"></iframe></div>
 </div></div>
 
-<div class="ov hidden" id="verErr" style="z-index:10001"><div class="box" style="border:2px solid var(--stamp)">
-  <span class="ic">⛔</span><h2 style="color:var(--stamp)">Erişim engellendi</h2>
-  <div class="msg">Güncel versiyon mevcut. Veri güvenliği için girişiniz engellendi.<br><br><b style="color:var(--stamp)">Eski versiyonu silip yeni versiyonu yükleyin.</b></div>
-  <button class="btn b-red" style="width:100%" onclick="window.electronAPI.closeApp()">Uygulamayı kapat</button>
-</div></div>
-
-<div class="ov hidden" id="settings"><div class="box" style="width:500px;text-align:left">
-  <div class="fh"><h2>⚙️ Sistem ayarları</h2><button class="x" onclick="hide('settings')">&times;</button></div>
-  <div class="g"><label>Mevcut ağ klasörü</label>
-    <div style="display:flex;gap:10px"><input id="curPath" class="fi" readonly style="color:var(--accent);font-weight:700"><button class="btn b-no" onclick="selectArchiveFolder()">Değiştir</button></div></div>
-  <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
-  <div class="g"><label>Evrak kategorileri</label>
-    <div style="display:flex;gap:10px"><input id="newCat" class="fi" placeholder="Örn: Meclis Kararları" onkeydown="if(event.key==='Enter')addNewCategory()"><button class="btn b-ok" onclick="addNewCategory()">Ekle</button></div>
-    <div class="catbox" id="catBox"></div></div>
-</div></div>
-
-<div class="ov hidden" id="upload"><div class="full-m">
-  <div class="fside">
-    <div class="fh"><h2 id="mTitle">📥 Yeni evrak girişi</h2><button class="x" onclick="closeModal()">&times;</button></div>
-    <div class="fc">
-      <div class="row"><div class="g"><label>📅 Kayıt tarihi</label><input type="date" id="fDate" class="fi"></div>
-      <div class="g"><label>🔢 Evrak no</label><input id="fNo" class="fi" placeholder="Örn: 2026/145"></div></div>
-      <div class="g"><label>🗂️ Kategori</label><select id="fCat" class="fi"></select></div>
-      <div class="g"><label>📝 Konu özeti</label><input id="fTitle" class="fi" placeholder="Evrakın konusu"></div>
-      <div class="g"><label>🗒️ Detaylı notlar</label><textarea id="fNote" class="fi" placeholder="Açıklamalar, parsel bilgileri…"></textarea></div>
-    </div>
-    <div class="fa"><button class="btn b-no" onclick="closeModal()">İptal</button><button class="btn b-ok" id="saveBtn" onclick="saveDocument()">💾 Sisteme kaydet</button></div>
-  </div>
-  <div class="pside" id="pside">
-    <div class="drop" id="drop" onclick="pickPdf()"><em>📄</em><b>PDF seçmek için tıklayın</b><span>veya dosyayı bu alana bırakın</span></div>
-    <iframe id="mFrame" class="hidden"></iframe>
-  </div>
+<div class="ov hidden" id="txEd"><div class="box txm">
+<div class="fh"><h2>PDF metni</h2><button class="x" onclick="hide('txEd')">&times;</button></div>
+<div class="msg" style="margin-bottom:10px" id="txInfo">Bu metin yalnızca “PDF içinde ara” için kullanılır. Hatalı okunan yerleri düzeltebilirsiniz.</div>
+<textarea id="txArea" spellcheck="false"></textarea>
+<div class="fa"><button class="b d" onclick="reOcr()">Yeniden oku</button><button class="b" onclick="hide('txEd')">İptal</button><button class="b p" onclick="saveTextEdit()">Kaydet</button></div>
 </div></div>
 
 <div class="app" id="app">
-  <div class="dock">
-    <button class="add" onclick="openModal()" title="Yeni evrak (Ctrl+N)">+</button>
-    <div class="quick">
-      <button class="tab on" data-v="Tümü" onclick="setView('Tümü')"><em>🏠</em>Tümü</button>
-      <button class="tab" data-v="fav" onclick="setView('fav')"><em>⭐</em>Favoriler</button>
-      <button class="tab" data-v="recent" onclick="setView('recent')"><em>🕐</em>Son eklenen</button>
-    </div>
-    <div class="sep"></div>
-    <div class="years" id="years"></div>
-    <div class="dockbtns"><button class="sm" id="themeBtn" onclick="toggleTheme()" title="Tema">🌙</button><button class="sm" onclick="openSettings()" title="Ayarlar">⚙️</button></div>
-  </div>
-
-  <div class="main">
-    <div class="stats" id="stats"></div>
-    <div class="searchrow">
-      <label class="search"><span>🔎</span><input id="q" placeholder="Evrak, not, numara veya kategori ara…" oninput="filterDocs()"><kbd>Ctrl K</kbd></label>
-      <select class="ctl" id="sort" onchange="filterDocs()" title="Sırala"><option value="date">📅 Tarih</option><option value="no">🔢 Numara</option><option value="cat">🗂️ Kategori</option></select>
-      <button class="ctl" id="viewBtn" onclick="toggleLayout()" title="Görünüm">▦</button>
-      <button class="ctl" onclick="loadDocuments()" title="Yenile">↻</button>
-    </div>
-    <div class="chips" id="chips"></div>
-    <div class="found" id="found"></div>
-    <div class="list"><div class="grid" id="grid"></div></div>
-  </div>
-
-  <div class="viewer">
-    <div class="vh"><h3 id="vTitle">Evrak önizleme</h3>
-      <div class="vb">
-        <button onclick="navDoc(-1)" title="Önceki">◀</button><button onclick="navDoc(1)" title="Sonraki">▶</button>
-        <button onclick="toggleInfo()">ℹ️ Bilgi</button><button onclick="toggleFull()">⛶</button>
-        <button onclick="editCurrentDoc()">✏️ Düzenle</button><button class="del" onclick="deleteCurrentDoc()">🗑️ Sil</button>
-        <button onclick="closePdfViewer()">✖</button>
-      </div></div>
-    <div class="vbody"><iframe id="pdfFrame"></iframe><div class="info" id="info"></div></div>
-  </div>
+<div class="dock"><button class="add" onclick="openModal()">+ Yeni evrak</button><div class="yl">Yıllar</div><div class="years" id="years"></div><button class="set" onclick="openSettings()">Ayarlar</button></div>
+<div class="main">
+<div class="sr">
+<div class="search"><input id="q" placeholder="Ara…  (Ctrl+K)" oninput="filterDocs()"></div>
+<select class="sel" id="mode" onchange="filterDocs()" title="Arama türü"><option value="info">Kayıt bilgilerinde ara</option><option value="pdf">PDF içinde ara</option></select>
+<select class="sel opt" id="fcat" onchange="filterDocs()"></select>
+<select class="sel opt" id="sort" onchange="filterDocs()"><option value="date">Tarihe göre</option><option value="no">Evrak no'ya göre</option><option value="cat">Kategoriye göre</option></select>
+<button class="sel" onclick="loadDocuments()" title="Yenile">Yenile</button>
+</div>
+<div class="found" id="found"></div>
+<div class="list"><div class="grid" id="grid"></div></div>
+</div>
+<div class="viewer"><div class="vh"><h3 id="vTitle"></h3><div class="vb"><button class="b" onclick="openTextEditor()">Metni düzenle</button><button class="b" onclick="editCurrentDoc()">Düzenle</button><button class="b d" onclick="deleteCurrentDoc()">Sil</button><button class="b" onclick="closePdfViewer()">Kapat</button></div></div><iframe id="pdfFrame"></iframe></div>
 </div>
 
 <script>
-const APP_VERSION = 1.0;
+const APP_VERSION = '2.1.0';
 let archivePath = localStorage.getItem('dys_archive_path');
-let documents = [], categories = [], currentPdfPath = null;
-let activeView = 'Tümü', activeCat = null, isEditMode = false, editDocData = null, curList = [];
-let favs = new Set(JSON.parse(localStorage.getItem('dys_favs') || '[]'));
-const $ = id => document.getElementById(id);
-const hide = id => $(id).classList.add('hidden'), show = id => $(id).classList.remove('hidden');
+let documents = [], categories = [], currentPdfPath = null, activeYear = 'Tümü', isEditMode = false, editDocData = null;
+let textIds = new Set(), hits = {}, fToken = 0, txDoc = null;
+const $ = id => document.getElementById(id), hide = id => $(id).classList.add('hidden'), show = id => $(id).classList.remove('hidden');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = t => String(t || '').replace(/İ/g,'i').replace(/I/g,'i').toLowerCase().replace(/ı/g,'i').replace(/ş/g,'s').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o').replace(/ç/g,'c');
 
-/* tema */
-function applyTheme(t){ document.documentElement.dataset.theme = t; $('themeBtn').innerText = t === 'dark' ? '☀️' : '🌙'; localStorage.setItem('dys_theme', t); }
-function toggleTheme(){ applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); }
-applyTheme(localStorage.getItem('dys_theme') || 'light');
-
-/* kategori görünümü: emoji + renk */
-const PALETTE = ['#1f5f5b','#c98a1b','#7a4e9c','#b3261e','#3b6ea5','#5e8c31','#d1683a','#8a5a44'];
-const EMOJIS = [['meclis','📜'],['yazı','📮'],['yazi','📮'],['parsel','🗺️'],['dilek','📋'],['hukuk','⚖️'],['mahkeme','⚖️'],['imar','🏗️'],['adres','🏠'],['numara','🔢'],['tapu','🏷️'],['rapor','📊'],['ihale','💼'],['genel','📁']];
-function catStyle(name){
-  name = name || 'Genel Evrak'; const l = name.toLowerCase();
-  let h = 0; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const e = EMOJIS.find(x => l.includes(x[0])); return { c: PALETTE[h % PALETTE.length], e: e ? e[1] : '📁' };
-}
-
-/* diyaloglar */
-function dialog(msg, title, type, confirm){
+function dialog(msg, title, confirm, danger){
   return new Promise(res => {
-    $('dTitle').innerText = title; $('dMsg').innerHTML = msg;
-    $('dIcon').innerText = {info:'🔔',error:'❌',success:'✅',warning:'⚠️',danger:'🗑️'}[type] || '🔔';
-    $('dNo').style.display = confirm ? 'block' : 'none';
-    const ok = $('dOk'); ok.innerText = confirm ? 'Evet, onaylıyorum' : 'Tamam';
-    ok.className = 'btn ' + (type === 'error' || type === 'danger' ? 'b-red' : 'b-ok');
-    show('dlg');
+    $('dT').innerText = title; $('dM').innerHTML = msg; $('dNo').style.display = confirm ? '' : 'none';
+    const ok = $('dOk'); ok.innerText = confirm ? 'Onaylıyorum' : 'Tamam'; ok.className = 'b ' + (danger ? 'd' : 'p'); show('dlg');
     ok.onclick = () => { hide('dlg'); res(true); }; $('dNo').onclick = () => { hide('dlg'); res(false); };
   });
 }
-const customAlert = (m, t = 'Bilgi', ty = 'info') => dialog(m, t, ty, false);
-const customConfirm = (m, t = 'Onay gerekli', ty = 'warning') => dialog(m, t, ty, true);
+const customAlert = (m, t = 'Bilgi') => dialog(m, t, false), customConfirm = (m, t = 'Onay gerekli', d) => dialog(m, t, true, d);
 function showNotification(type, message){
-  const t = document.createElement('div'); t.className = 'toast ' + type;
-  t.innerHTML = (type === 'success' ? '✅ ' : type === 'error' ? '❌ ' : '⚠️ ') + esc(message);
-  $('toasts').appendChild(t); setTimeout(() => t.classList.add('show'), 10);
-  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 3000);
+  const t = document.createElement('div'); t.className = 'toast ' + type; t.innerText = message; $('toasts').appendChild(t);
+  setTimeout(() => t.classList.add('show'), 10); setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3200);
 }
 
-/* açılış */
 window.onload = async () => {
-  const fade = d => { $('splash').style.opacity = 0; setTimeout(() => $('splash').style.display = 'none', d); };
-  const step = async (t, p) => { $('sText').innerText = t; $('sBar').style.width = p + '%'; await new Promise(r => setTimeout(r, 800)); };
-  if (!archivePath){ fade(500); show('setup'); return; }
+  const fade = () => { $('splash').style.opacity = 0; setTimeout(() => $('splash').style.display = 'none', 600); };
+  const step = async (t, p) => { $('sText').innerText = t; $('sBar').style.width = p + '%'; await new Promise(r => setTimeout(r, 600)); };
+  if (!archivePath){ fade(); show('setup'); return; }
   await step('Arşive bağlanılıyor…', 25);
-  const exists = await window.electronAPI.checkFolder(archivePath);
-  if (!exists || !archivePath.toUpperCase().endsWith('DYS ARŞİV')){ fade(500); show('setup'); showNotification('error', 'Bağlantı koptu veya klasör adı yanlış!'); return; }
-  await step('Versiyon kontrol ediliyor… (v' + APP_VERSION + ')', 50);
-  const v = await window.electronAPI.checkVersion(archivePath, APP_VERSION);
-  if (!v.ok){ $('splash').style.display = 'none'; show('verErr'); return; }
-  await step('Dosyalar ve klasörler getiriliyor…', 75);
-  await loadCategories(); documents = await window.electronAPI.loadDb(archivePath);
-  await step('Arşiv hazırlanıyor…', 100);
-  refresh(); fade(700); showNotification('success', 'Sistem başarıyla başlatıldı!');
+  if (!await window.electronAPI.checkFolder(archivePath) || !archivePath.toUpperCase().endsWith('DYS ARŞİV')){ fade(); show('setup'); showNotification('error', 'Bağlantı koptu veya klasör adı yanlış!'); return; }
+  await step('Sürüm kontrol ediliyor… (v' + APP_VERSION + ')', 50);
+  if (!(await window.electronAPI.checkVersion(archivePath, APP_VERSION)).ok){ $('splash').style.display = 'none'; show('verErr'); return; }
+  await step('Kayıtlar yükleniyor…', 80);
+  await loadCategories(); documents = await window.electronAPI.loadDb(archivePath); textIds = new Set(await window.electronAPI.textIds(archivePath));
+  await step('Hazır', 100); refresh(); fade();
 };
 
 /* kategoriler */
-async function loadCategories(){ categories = await window.electronAPI.getCategories(archivePath); renderCategorySettings(); renderCategoryDropdown(); }
-function renderCategorySettings(){
-  $('catBox').innerHTML = categories.map((c, i) => `<div class="ci"><span>${catStyle(c).e} ${esc(c)}</span><button onclick="deleteCategory(${i})">✖</button></div>`).join('');
+async function loadCategories(){ categories = await window.electronAPI.getCategories(archivePath); renderCats(); }
+function renderCats(){
+  $('catBox').innerHTML = categories.map((c, i) => `<div class="ci"><span>${esc(c)}</span><button onclick="deleteCategory(${i})">Sil</button></div>`).join('');
+  $('fCat').innerHTML = categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  const all = [...new Set([...categories, ...documents.map(d => d.category).filter(Boolean)])], cur = $('fcat').value;
+  $('fcat').innerHTML = '<option value="">Tüm kategoriler</option>' + all.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join(''); $('fcat').value = cur;
 }
-function renderCategoryDropdown(){ $('fCat').innerHTML = categories.map(c => `<option value="${esc(c)}">${catStyle(c).e} ${esc(c)}</option>`).join(''); }
 async function addNewCategory(){
   const v = $('newCat').value.trim();
-  if (v && !categories.includes(v)){
-    categories.push(v); $('newCat').value = '';
-    await window.electronAPI.saveCategories(archivePath, categories); await loadCategories(); renderChips(); showNotification('success', 'Kategori eklendi.');
-  } else if (v) await customAlert('Bu kategori zaten mevcut!', 'Uyarı', 'warning');
+  if (v && !categories.includes(v)){ categories.push(v); $('newCat').value = ''; await window.electronAPI.saveCategories(archivePath, categories); renderCats(); showNotification('success', 'Kategori eklendi.'); }
+  else if (v) await customAlert('Bu kategori zaten mevcut.', 'Uyarı');
 }
 async function deleteCategory(i){
-  if (await customConfirm('Kategoriyi silmek istediğinize emin misiniz?<br>(Geçmiş dosyalar klasörde durmaya devam eder)', 'Kategori sil', 'danger')){
-    categories.splice(i, 1); await window.electronAPI.saveCategories(archivePath, categories); await loadCategories(); renderChips();
-  }
+  if (await customConfirm('Kategori silinsin mi?<br>(Geçmiş dosyalar klasörde durmaya devam eder)', 'Kategori sil', true)){ categories.splice(i, 1); await window.electronAPI.saveCategories(archivePath, categories); renderCats(); }
 }
-function openSettings(){ $('curPath').value = archivePath || 'Tanımlanmamış'; show('settings'); }
+function openSettings(){ $('curPath').value = archivePath || ''; const n = documents.filter(d => !textIds.has(d.id)).length; $('scanInfo').innerText = n + ' evrak okunmamış'; show('settings'); }
 async function selectArchiveFolder(){
   const p = await window.electronAPI.selectFolder(); if (!p) return;
-  if (!p.toUpperCase().endsWith('DYS ARŞİV')){ await customAlert('Seçilen klasörün adı mutlaka <b>DYS ARŞİV</b> olmalıdır!', 'Geçersiz klasör', 'error'); return; }
+  if (!p.toUpperCase().endsWith('DYS ARŞİV')){ await customAlert('Klasörün adı <b>DYS ARŞİV</b> olmalıdır.', 'Geçersiz klasör'); return; }
   archivePath = p; localStorage.setItem('dys_archive_path', p); hide('setup'); hide('settings');
-  showNotification('success', 'Arşiv bağlandı. Lütfen programı yeniden başlatın.'); setTimeout(() => window.electronAPI.closeApp(), 2500);
+  showNotification('success', 'Arşiv bağlandı. Program yeniden başlatılacak.'); setTimeout(() => window.electronAPI.closeApp(), 2500);
 }
 
-/* veri */
+/* veri / liste */
 async function loadDocuments(){
-  documents = await window.electronAPI.loadDb(archivePath); refresh();
+  documents = await window.electronAPI.loadDb(archivePath); textIds = new Set(await window.electronAPI.textIds(archivePath)); refresh();
   if (editDocData && $('app').classList.contains('open')){
     const u = documents.find(d => d.id === editDocData.id);
-    if (u){ editDocData = u; $('pdfFrame').src = 'file://' + u.filePath; $('vTitle').innerText = `${u.year}/${u.docNo} - ${u.title}`; fillInfo(); } else closePdfViewer();
+    if (u){ editDocData = u; $('vTitle').innerText = `${u.docNo} — ${u.title}`; } else closePdfViewer();
   }
 }
-function refresh(){ renderYears(); renderChips(); renderStats(); filterDocs(); }
-function setView(v){ activeView = v; refresh(); closePdfViewer(); }
+function refresh(){ renderYears(); renderCats(); filterDocs(); }
 function renderYears(){
   const cnt = {}; documents.forEach(d => cnt[d.year] = (cnt[d.year] || 0) + 1);
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.v === activeView));
-  $('years').innerHTML = Object.keys(cnt).sort().reverse().map(y => `<button class="year ${activeView === y ? 'on' : ''}" onclick="setView('${y}')">📁 ${esc(y)}<small>${cnt[y]} evrak</small></button>`).join('');
+  const b = (y, l, n) => `<button class="y ${activeYear === y ? 'on' : ''}" data-y="${esc(y)}" onclick="setYear(this.dataset.y)">${l}<span>${n}</span></button>`;
+  $('years').innerHTML = b('Tümü', 'Tümü', documents.length) + Object.keys(cnt).sort().reverse().map(y => b(y, esc(y), cnt[y])).join('');
 }
-function renderChips(){
-  const used = [...new Set([...categories, ...documents.map(d => d.category).filter(Boolean)])];
-  $('chips').innerHTML = used.map(c => `<button class="chip ${activeCat === c ? 'on' : ''}" onclick="setCat(this.dataset.c)" data-c="${esc(c)}">${catStyle(c).e} ${esc(c)}</button>`).join('');
-}
-function setCat(c){ activeCat = activeCat === c ? null : c; renderChips(); filterDocs(); }
-function renderStats(){
-  const now = new Date(), m = documents.filter(d => { const x = new Date(d.docDate); return x.getMonth() === now.getMonth() && x.getFullYear() === now.getFullYear(); }).length;
-  const cc = {}; documents.forEach(d => { const c = d.category || 'Genel Evrak'; cc[c] = (cc[c] || 0) + 1; });
-  const top = Object.entries(cc).sort((a, b) => b[1] - a[1])[0];
-  $('stats').innerHTML = `<div class="stat"><em>🗃️</em><div><b>${documents.length}</b><span>toplam evrak</span></div></div>
-    <div class="stat"><em>🆕</em><div><b>${m}</b><span>bu ay tarihli</span></div></div>
-    <div class="stat"><em>${top ? catStyle(top[0]).e : '🏆'}</em><div><b>${top ? esc(top[0]) : '-'}</b><span>en çok kullanılan</span></div></div>
-    <div class="stat"><em>⭐</em><div><b>${favs.size}</b><span>favori</span></div></div>`;
-}
-
-/* filtre / sıralama */
-function filterDocs(){
-  const q = $('q').value.toLowerCase().trim(); let f = documents.slice();
-  if (activeView === 'fav') f = f.filter(d => favs.has(d.id));
-  else if (activeView === 'recent') f = f.sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0)).slice(0, 20);
-  else if (activeView !== 'Tümü') f = f.filter(d => d.year === activeView);
-  if (activeCat) f = f.filter(d => (d.category || 'Genel Evrak') === activeCat);
-  if (q) f = f.filter(d => [d.title, d.note, d.docNo, d.category].some(x => x && String(x).toLowerCase().includes(q)));
+function setYear(y){ activeYear = y; renderYears(); filterDocs(); closePdfViewer(); }
+let deb; $('q') && $('q').addEventListener('input', () => {});
+async function filterDocs(){
+  const tk = ++fToken, raw = $('q').value.trim(), q = norm(raw), pdfMode = $('mode').value === 'pdf';
+  let f = documents.slice();
+  if (activeYear !== 'Tümü') f = f.filter(d => d.year === activeYear);
+  if ($('fcat').value) f = f.filter(d => (d.category || 'Genel Evrak') === $('fcat').value);
+  hits = {};
+  if (q && pdfMode){
+    await new Promise(r => { clearTimeout(deb); deb = setTimeout(r, 250); }); if (tk !== fToken) return;
+    hits = await window.electronAPI.searchText(archivePath, raw); if (tk !== fToken) return;
+    f = f.filter(d => hits[String(d.id)]);
+  } else if (q) f = f.filter(d => [d.title, d.note, d.docNo, d.category, d.docDate].some(x => x && norm(x).includes(q)));
   const s = $('sort').value;
-  if (activeView !== 'recent' || s !== 'date'){
-    if (s === 'no') f.sort((a, b) => String(b.docNo).localeCompare(String(a.docNo), 'tr', {numeric: true}));
-    else if (s === 'cat') f.sort((a, b) => String(a.category).localeCompare(String(b.category), 'tr'));
-    else f.sort((a, b) => new Date(b.docDate || b.dateAdded) - new Date(a.docDate || a.dateAdded));
-  }
-  curList = f; $('found').innerText = `🔎 ${f.length} evrak bulundu`; renderList(f, q);
+  if (s === 'no') f.sort((a, b) => String(b.docNo).localeCompare(String(a.docNo), 'tr', {numeric: true}));
+  else if (s === 'cat') f.sort((a, b) => String(a.category).localeCompare(String(b.category), 'tr'));
+  else f.sort((a, b) => new Date(b.docDate || b.dateAdded) - new Date(a.docDate || a.dateAdded));
+  $('found').innerText = `${f.length} evrak listeleniyor` + (q && pdfMode ? ' (PDF içi arama)' : '');
+  renderList(f, pdfMode ? '' : raw);
 }
 function hl(t, q){
   const s = esc(t); if (!q) return s;
@@ -387,66 +242,37 @@ function hl(t, q){
 }
 function renderList(docs, q){
   const g = $('grid');
-  if (!docs.length){
-    g.innerHTML = `<div class="empty"><em>📭</em><b>${documents.length ? 'Eşleşen evrak yok' : 'Arşiv henüz boş'}</b>${documents.length ? 'Aramayı veya filtreleri değiştirin.' : '＋ düğmesiyle ilk evrakı ekleyin.'}</div>`; return;
-  }
+  if (!docs.length){ g.innerHTML = `<div class="empty"><b>${documents.length ? 'Sonuç bulunamadı' : 'Arşiv boş'}</b>${documents.length ? 'Arama ölçütlerini değiştirin.' : '“Yeni evrak” ile ilk kaydı ekleyin.'}</div>`; return; }
   g.innerHTML = '';
   docs.forEach(doc => {
-    const st = catStyle(doc.category), d = new Date(doc.docDate), ok = !isNaN(d);
+    const d = new Date(doc.docDate), ok = !isNaN(d), h = hits[String(doc.id)];
     const card = document.createElement('div'); card.className = 'doc' + (editDocData && editDocData.id === doc.id ? ' active' : '');
-    card.style.setProperty('--c', st.c);
-    card.innerHTML = `<button class="star ${favs.has(doc.id) ? 'on' : ''}" title="Favori">⭐</button>
-      <div class="dh"><div class="seal">№ ${hl(doc.docNo, q)}</div>
-      <div class="cal" style="margin-right:26px"><i>${ok ? d.toLocaleDateString('tr-TR', {month: 'short'}) : '-'}</i><b>${ok ? d.getDate() : '-'}</b><span>${ok ? d.getFullYear() : ''}</span></div></div>
-      <div class="dt">${hl(doc.title, q)}</div>
-      <div class="cat">${st.e} ${hl(doc.category || 'Genel Evrak', q)}</div>
-      <div class="note">${doc.note ? hl(doc.note, q) : '<i>Not girilmemiş.</i>'}</div>
-      <div class="acts"><button data-a="o">👁️ Aç</button><button data-a="e">✏️ Düzenle</button><button data-a="f">⭐ Favori</button></div>`;
-    card.onclick = ev => {
-      const a = ev.target.closest('[data-a]'), s = ev.target.closest('.star');
-      if (s || (a && a.dataset.a === 'f')){ toggleFav(doc.id); return; }
-      if (a && a.dataset.a === 'e'){ openPdfViewer(card, doc, true); editCurrentDoc(); return; }
-      openPdfViewer(card, doc);
-    };
+    card.innerHTML = `<div class="top"><div class="no">Sayı <b>${hl(doc.docNo, q)}</b></div>
+      <div class="dt"><b>${ok ? d.toLocaleDateString('tr-TR', {day: 'numeric', month: 'long', year: 'numeric'}) : '-'}</b><span>${ok ? d.toLocaleDateString('tr-TR', {weekday: 'long'}) : ''}</span></div></div>
+      <div class="subj">${hl(doc.title, q)}</div><div class="cat">${hl(doc.category || 'Genel Evrak', q)}</div>
+      ${doc.note ? `<div class="note">${hl(doc.note, q)}</div>` : ''}
+      ${h ? `<div class="hit">PDF içinde bulundu — sayfa ${h.slice(0, 6).join(', ')}${h.length > 6 ? ' …' : ''}</div>` : ''}`;
+    card.onclick = () => openPdfViewer(card, doc, h ? h[0] : 0);
     g.appendChild(card);
   });
 }
-function toggleFav(id){
-  favs.has(id) ? favs.delete(id) : favs.add(id);
-  localStorage.setItem('dys_favs', JSON.stringify([...favs])); renderStats(); filterDocs(); if (editDocData) fillInfo();
-}
-function toggleLayout(){ const r = $('grid').classList.toggle('rows'); $('viewBtn').innerText = r ? '☰' : '▦'; }
 
 /* görüntüleyici */
-function fillInfo(){
-  const d = editDocData; if (!d) return; const st = catStyle(d.category);
-  $('info').innerHTML = `<div style="min-width:220px"><h4>№ ${esc(d.docNo)}</h4><p>${esc(d.title)}</p>
-    <h4>📅 Tarih</h4><p>${esc(d.docDate)}</p><h4>${st.e} Kategori</h4><p>${esc(d.category || 'Genel Evrak')}</p>
-    <h4>🗒️ Notlar</h4><p>${esc(d.note || 'Not girilmemiş.')}</p>
-    <button class="btn b-no" style="width:100%" onclick="toggleFav('${esc(d.id)}')">${favs.has(d.id) ? '⭐ Favoriden çıkar' : '☆ Favoriye ekle'}</button></div>`;
-}
-function toggleInfo(){ $('info').classList.toggle('on'); fillInfo(); }
-function toggleFull(){ $('app').classList.toggle('full'); }
 function closePdfViewer(){
-  $('app').classList.remove('open', 'full'); document.querySelectorAll('.doc').forEach(c => c.classList.remove('active'));
-  setTimeout(() => { if (!$('app').classList.contains('open')) $('pdfFrame').src = ''; }, 400); editDocData = null;
+  $('app').classList.remove('open'); document.querySelectorAll('.doc').forEach(c => c.classList.remove('active'));
+  setTimeout(() => { if (!$('app').classList.contains('open')) $('pdfFrame').src = ''; }, 350); editDocData = null;
 }
-function openPdfViewer(card, doc, force){
-  if (!force && editDocData && editDocData.id === doc.id && $('app').classList.contains('open')){ closePdfViewer(); return; }
+function openPdfViewer(card, doc, page){
+  if (!page && editDocData && editDocData.id === doc.id && $('app').classList.contains('open')){ closePdfViewer(); return; }
   document.querySelectorAll('.doc').forEach(c => c.classList.remove('active')); if (card) card.classList.add('active');
   editDocData = doc; $('app').classList.add('open');
-  $('pdfFrame').src = 'file://' + doc.filePath; $('vTitle').innerText = `${doc.year}/${doc.docNo} - ${doc.title}`; fillInfo();
-}
-function navDoc(dir){
-  if (!editDocData) return; const i = curList.findIndex(d => d.id === editDocData.id), n = curList[i + dir];
-  if (n){ openPdfViewer(null, n, true); filterDocs(); } else showNotification('info', dir > 0 ? 'Son evrak.' : 'İlk evrak.');
+  $('pdfFrame').src = 'file://' + doc.filePath + (page ? '#page=' + page : ''); $('vTitle').innerText = `${doc.docNo} — ${doc.title}`;
 }
 async function deleteCurrentDoc(){
   if (!editDocData) return;
-  if (await customConfirm(`Evrak No: <b>${esc(editDocData.docNo)}</b> kalıcı olarak SİLİNECEKTİR.<br>Emin misiniz?`, 'Kalıcı silme işlemi', 'danger')){
+  if (await customConfirm(`Evrak no <b>${esc(editDocData.docNo)}</b> kalıcı olarak silinecek.<br>Emin misiniz?`, 'Kalıcı silme', true)){
     const r = await window.electronAPI.deleteDoc({id: editDocData.id, filePath: editDocData.filePath, archiveRoot: archivePath});
-    if (r.success){ favs.delete(editDocData.id); localStorage.setItem('dys_favs', JSON.stringify([...favs])); showNotification('success', 'Evrak başarıyla silindi.'); closePdfViewer(); closeModal(); await loadDocuments(); }
-    else await customAlert('Silme hatası tespit edildi!', 'Hata', 'error');
+    if (r.success){ showNotification('success', 'Evrak silindi.'); closePdfViewer(); closeModal(); await loadDocuments(); } else await customAlert('Silme hatası: ' + esc(r.error || ''), 'Hata');
   }
 }
 
@@ -455,57 +281,109 @@ const pside = $('pside');
 pside.addEventListener('dragover', e => { e.preventDefault(); $('drop').classList.add('over'); });
 pside.addEventListener('dragleave', e => { e.preventDefault(); $('drop').classList.remove('over'); });
 pside.addEventListener('drop', e => {
-  e.preventDefault(); $('drop').classList.remove('over');
-  const f = e.dataTransfer.files[0]; if (!f) return;
-  if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) processSelectedPdf(f.path, f.name);
-  else showNotification('error', 'Lütfen geçerli bir PDF sürükleyin!');
+  e.preventDefault(); $('drop').classList.remove('over'); const f = e.dataTransfer.files[0]; if (!f) return;
+  if (f.name.toLowerCase().endsWith('.pdf')) processSelectedPdf(f.path); else showNotification('error', 'Lütfen bir PDF dosyası bırakın.');
 });
-async function pickPdf(){ const p = await window.electronAPI.selectPdf(); if (p) processSelectedPdf(p, p.split('\\').pop()); }
-function processSelectedPdf(path){
-  currentPdfPath = path; $('drop').classList.add('hidden'); $('mFrame').classList.remove('hidden'); $('mFrame').src = 'file://' + path; showNotification('success', 'PDF yüklendi.');
-}
+async function pickPdf(){ const p = await window.electronAPI.selectPdf(); if (p) processSelectedPdf(p); }
+function processSelectedPdf(p){ currentPdfPath = p; $('drop').classList.add('hidden'); $('mFrame').classList.remove('hidden'); $('mFrame').src = 'file://' + p; }
 function openModal(edit = false){
-  isEditMode = edit; $('mTitle').innerText = edit ? '✏️ Evrak düzenle' : '📥 Yeni evrak girişi'; show('upload');
+  isEditMode = edit; $('mTitle').innerText = edit ? 'Evrak düzenle' : 'Yeni evrak girişi'; show('upload');
   if (edit){ $('drop').classList.add('hidden'); $('mFrame').classList.remove('hidden'); }
   else { $('fDate').valueAsDate = new Date(); $('drop').classList.remove('hidden'); $('mFrame').classList.add('hidden'); }
 }
-function closeModal(){
-  hide('upload'); currentPdfPath = null; ['fNo', 'fTitle', 'fNote'].forEach(i => $(i).value = ''); $('mFrame').src = '';
-}
+function closeModal(){ hide('upload'); currentPdfPath = null; ['fNo', 'fTitle', 'fNote'].forEach(i => $(i).value = ''); $('mFrame').src = ''; }
 function editCurrentDoc(){
   if (!editDocData) return;
-  $('fDate').value = editDocData.docDate || ''; $('fNo').value = editDocData.docNo; $('fTitle').value = editDocData.title;
-  $('fNote').value = editDocData.note || ''; $('fCat').value = editDocData.category || 'Genel Evrak';
-  openModal(true); $('mFrame').src = 'file://' + editDocData.filePath;
+  $('fDate').value = editDocData.docDate || ''; $('fNo').value = editDocData.docNo; $('fTitle').value = editDocData.title; $('fNote').value = editDocData.note || '';
+  $('fCat').value = editDocData.category || 'Genel Evrak'; openModal(true); $('mFrame').src = 'file://' + editDocData.filePath;
 }
 async function saveDocument(){
   const docDate = $('fDate').value;
-  if (!docDate || !$('fNo').value || !$('fTitle').value){ await customAlert('Tarih, Evrak No ve Konu Özeti zorunludur.', 'Eksik bilgi', 'warning'); return; }
-  const btn = $('saveBtn'), old = btn.innerText; btn.innerText = '⏳ İşleniyor…'; btn.disabled = true;
-  const data = {sourcePdf: currentPdfPath, archiveRoot: archivePath, year: docDate.split('-')[0], docDate,
-    category: $('fCat').value, docNo: $('fNo').value, title: $('fTitle').value, note: $('fNote').value};
+  if (!docDate || !$('fNo').value || !$('fTitle').value){ await customAlert('Tarih, evrak no ve konu özeti zorunludur.', 'Eksik bilgi'); return; }
+  const btn = $('saveBtn'); btn.innerText = 'İşleniyor…'; btn.disabled = true;
+  const data = {sourcePdf: currentPdfPath, archiveRoot: archivePath, year: docDate.split('-')[0], docDate, category: $('fCat').value, docNo: $('fNo').value, title: $('fTitle').value, note: $('fNote').value};
   let r;
   if (isEditMode){ data.id = editDocData.id; data.oldYear = editDocData.year; data.oldCategory = editDocData.category; data.oldFilePath = editDocData.filePath; r = await window.electronAPI.updateDoc(data); }
   else {
-    if (!currentPdfPath){ await customAlert('Lütfen kaydetmeden önce bir PDF dosyası seçin veya sürükleyin.', 'PDF eksik', 'warning'); btn.innerText = old; btn.disabled = false; return; }
+    if (!currentPdfPath){ await customAlert('Kaydetmeden önce bir PDF seçin veya sürükleyin.', 'PDF eksik'); btn.innerText = 'Kaydet'; btn.disabled = false; return; }
     r = await window.electronAPI.saveDoc(data);
   }
-  if (r.success){ showNotification('success', isEditMode ? 'Evrak güncellendi.' : 'Yeni evrak eklendi.'); closeModal(); $('q').value = ''; await loadDocuments(); if (!isEditMode) closePdfViewer(); }
-  else await customAlert('İşlem sırasında bir hata oluştu!', 'Hata', 'error');
-  btn.innerText = old; btn.disabled = false;
+  if (r.success){
+    showNotification('success', isEditMode ? 'Evrak güncellendi.' : 'Evrak eklendi. PDF metni arka planda okunuyor.');
+    closeModal(); $('q').value = ''; await loadDocuments(); if (!isEditMode){ closePdfViewer(); if (r.doc) queueOcr(r.doc); }
+  } else await customAlert('İşlem başarısız: ' + esc(r.error || ''), 'Hata');
+  btn.innerText = 'Kaydet'; btn.disabled = false;
 }
 
-/* kısayollar */
+/* ---------- PDF metni (OCR) ---------- */
+const U = p => new URL(p, location.href).href;
+pdfjsLib.GlobalWorkerOptions.workerSrc = U('node_modules/pdfjs-dist/build/pdf.worker.js');
+let queue = [], busy = false;
+function ocrStatus(t){ const e = $('ocr'); if (t){ e.innerText = t; e.classList.remove('hidden'); } else e.classList.add('hidden'); }
+function queueOcr(doc){ return new Promise(res => { queue.push({doc, res}); if (!busy) runQueue(); }); }
+async function runQueue(){
+  busy = true;
+  while (queue.length){
+    const {doc, res} = queue.shift(), left = queue.length; let ok = false;
+    try { await processDoc(doc, (i, n) => ocrStatus(`Metin okunuyor: ${doc.docNo} — sayfa ${i}/${n}` + (left ? ` (+${left} evrak sırada)` : ''))); ok = true; }
+    catch (e) { console.error(e); showNotification('error', `Metin okunamadı: ${doc.docNo}`); }
+    res(ok);
+  }
+  busy = false; ocrStatus(null);
+}
+async function processDoc(doc, prog){
+  const buf = await window.electronAPI.readPdf(doc.filePath); if (!buf) throw new Error('PDF okunamadı');
+  const pdf = await pdfjsLib.getDocument({data: new Uint8Array(buf)}).promise, pages = []; let worker = null, usedOcr = false;
+  try {
+    for (let i = 1; i <= pdf.numPages; i++){
+      prog(i, pdf.numPages);
+      const pg = await pdf.getPage(i); let txt = (await pg.getTextContent()).items.map(x => x.str).join(' ').replace(/\s+/g, ' ').trim();
+      if (txt.length < 25){
+        usedOcr = true;
+        worker = worker || await Tesseract.createWorker('tur', 1, {workerPath: U('node_modules/tesseract.js/dist/worker.min.js'), corePath: U('node_modules/tesseract.js-core/'), langPath: U('node_modules/@tesseract.js-data/tur/4.0.0_best_int'), workerBlobURL: false, gzip: true});
+        const vp = pg.getViewport({scale: 2.2}), cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+        await pg.render({canvasContext: cv.getContext('2d'), viewport: vp}).promise;
+        txt = (await worker.recognize(cv)).data.text.trim();
+      }
+      pages.push(txt);
+    }
+  } finally { if (worker) await worker.terminate(); }
+  await window.electronAPI.saveText(archivePath, doc.id, {pages, source: usedOcr ? 'ocr' : 'pdf', date: new Date().toISOString()});
+  textIds.add(doc.id); return pages;
+}
+async function scanAll(){
+  const todo = documents.filter(d => !textIds.has(d.id)); if (!todo.length){ showNotification('info', 'Okunmamış evrak yok.'); return; }
+  hide('settings'); showNotification('info', `${todo.length} evrak sıraya alındı.`); todo.forEach(d => queueOcr(d));
+}
+const parseTx = s => s.split(/^=== SAYFA \d+ ===\s*$/m).slice(1).map(x => x.trim());
+const fmtTx = pages => pages.map((p, i) => `=== SAYFA ${i + 1} ===\n${p}`).join('\n\n');
+async function openTextEditor(){
+  if (!editDocData) return; txDoc = editDocData; let t = await window.electronAPI.getText(archivePath, txDoc.id);
+  if (!t){
+    showNotification('info', 'Bu evrak daha önce okunmamış, okunuyor…');
+    if (!await queueOcr(txDoc)) return; t = await window.electronAPI.getText(archivePath, txDoc.id);
+  }
+  fillTx(t); show('txEd');
+}
+function fillTx(t){
+  $('txArea').value = fmtTx(t.pages);
+  $('txInfo').innerText = `Kaynak: ${{ocr: 'OCR ile okundu', pdf: 'PDF içindeki metin', manual: 'Elle düzenlendi'}[t.source] || t.source}. Bu metin yalnızca “PDF içinde ara” için kullanılır. Sayfa başlıklarını (=== SAYFA n ===) silmeyin.`;
+}
+async function saveTextEdit(){
+  const pages = parseTx($('txArea').value); if (!pages.length){ await customAlert('Sayfa başlıkları bulunamadı. Metin kaydedilmedi.', 'Hata'); return; }
+  const r = await window.electronAPI.saveText(archivePath, txDoc.id, {pages, source: 'manual', date: new Date().toISOString()});
+  if (r.success){ textIds.add(txDoc.id); hide('txEd'); showNotification('success', 'Metin kaydedildi.'); if ($('mode').value === 'pdf') filterDocs(); } else showNotification('error', 'Kaydedilemedi.');
+}
+async function reOcr(){
+  if (!await customConfirm('Metin yeniden okunacak. Elle yaptığınız düzeltmeler <b>silinecek</b>.', 'Yeniden oku', true)) return;
+  hide('txEd'); showNotification('info', 'Yeniden okunuyor…');
+  if (await queueOcr(txDoc)){ fillTx(await window.electronAPI.getText(archivePath, txDoc.id)); show('txEd'); }
+}
+
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); $('q').focus(); $('q').select(); }
   else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n'){ e.preventDefault(); openModal(); }
-  else if (e.key === 'Escape'){
-    if (!$('upload').classList.contains('hidden')) closeModal();
-    else if (!$('settings').classList.contains('hidden')) hide('settings');
-    else if ($('app').classList.contains('full')) toggleFull();
-    else closePdfViewer();
-  } else if (e.altKey && e.key === 'ArrowRight') navDoc(1);
-  else if (e.altKey && e.key === 'ArrowLeft') navDoc(-1);
+  else if (e.key === 'Escape'){ if (!$('txEd').classList.contains('hidden')) hide('txEd'); else if (!$('upload').classList.contains('hidden')) closeModal(); else if (!$('settings').classList.contains('hidden')) hide('settings'); else closePdfViewer(); }
 });
 </script>
 </body>

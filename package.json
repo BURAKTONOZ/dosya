@@ -29,7 +29,7 @@
     "win": {
       "target": "portable",
       "executableName": "DYS",
-      "icon": "build/icon.ico"
+      "icon": "icon.ico"
     },
     "portable": {
       "artifactName": "DYS.exe"

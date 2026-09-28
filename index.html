@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>DYS Numarataj</title>
+    <style>
+        :root {
+            --bg-base: #f0f4f8; --bg-card: #ffffff; --text-main: #0f172a; 
+            --text-muted: #64748b; --accent: #3b82f6; --accent-hover: #2563eb;
+            --danger: #ef4444; --warning: #f59e0b; --success: #10b981; --border: #e2e8f0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background-color: var(--bg-base); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        .splash-screen { position: fixed; inset: 0; background: #070a13; z-index: 10000; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s ease; }
+        .splash-content { text-align: center; color: white; width: 400px; }
+        .splash-content h1 { font-size: 28px; margin-bottom: 30px; letter-spacing: 2px; }
+        .splash-content h1 span { color: var(--accent); }
+        .splash-text { color: #94a3b8; font-size: 14px; margin-bottom: 15px; font-weight: 600; letter-spacing: 1px; }
+        .progress-bar { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: var(--accent); box-shadow: 0 0 10px var(--accent); transition: width 0.8s ease; }
+        .splash-copyright { position: absolute; bottom: 20px; right: 30px; color: rgba(255,255,255,0.15); font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+
+        .notification-area { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 15px; z-index: 9999; pointer-events: none; }
+        .toast { display: flex; align-items: center; gap: 15px; background: #ffffff; padding: 16px 24px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-left: 6px solid; transform: translateX(120%); transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); font-weight: 600; font-size: 14px; pointer-events: auto; }
+        .toast.show { transform: translateX(0); }
+        .toast-success { border-color: var(--success); } .toast-error { border-color: var(--danger); } .toast-info { border-color: var(--warning); }
+        .toast-icon { font-size: 20px; }
+
+        .titlebar { height: 65px; background: #ffffff; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); -webkit-app-region: drag; z-index: 9000; padding-right: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .titlebar-brand { display: flex; align-items: center; gap: 14px; padding-left: 20px; }
+        .titlebar-logo { background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; width: 42px; height: 42px; border-radius: 12px; font-size: 20px; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(59,130,246,0.3); }
+        .titlebar-text { display: flex; flex-direction: column; justify-content: center; line-height: 1.3; }
+        .titlebar-text-top { font-size: 14px; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px; }
+        .titlebar-text-bottom { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+        .titlebar-controls { display: flex; height: 100%; -webkit-app-region: no-drag; align-items: flex-start; }
+        .win-btn { width: 45px; height: 40px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; transition: 0.2s; font-size: 14px; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;}
+        .win-btn:hover { background: #e2e8f0; color: var(--text-main); }
+        .win-btn-close:hover { background: var(--danger); color: white; }
+
+        .app-container { display: flex; flex: 1; overflow: hidden; }
+        .dock { width: 90px; background: #ffffff; display: flex; flex-direction: column; align-items: center; padding: 25px 0; border-right: 1px solid var(--border); z-index: 20; position: relative; box-shadow: 4px 0 15px rgba(0,0,0,0.02); }
+        .btn-dock-add { width: 54px; height: 54px; border-radius: 16px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; border: none; font-size: 28px; cursor: pointer; display: flex; justify-content: center; align-items: center; margin-bottom: 20px; box-shadow: 0 6px 15px rgba(59, 130, 246, 0.35); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-dock-add:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.45); }
+        .dock-divider { width: 30px; height: 2px; background: var(--border); border-radius: 2px; margin-bottom: 20px; }
+        .dock-years { display: flex; flex-direction: column; gap: 12px; width: 100%; align-items: center; overflow-y: auto; flex: 1;}
+        .dock-years::-webkit-scrollbar { display: none; }
+        .year-dock-btn { width: 54px; height: 54px; border-radius: 14px; background: #f8fafc; color: var(--text-muted); border: 1px solid var(--border); font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.3s; }
+        .year-dock-btn:hover { background: #e2e8f0; color: var(--text-main); }
+        .year-dock-btn.active { background: #eff6ff; color: var(--accent); border-color: #bfdbfe; box-shadow: 0 4px 10px rgba(59,130,246,0.15); }
+        .btn-settings { position: absolute; bottom: 25px; width: 45px; height: 45px; border-radius: 12px; background: transparent; border: none; color: #cbd5e1; font-size: 24px; cursor: pointer; transition: 0.3s; display: flex; justify-content: center; align-items: center;}
+        .btn-settings:hover { color: var(--text-muted); background: #f1f5f9; transform: rotate(45deg); }
+
+        .list-panel { flex: 1; display: flex; flex-direction: column; transition: 0.4s; background: var(--bg-base); position: relative; }
+        .app-container.pdf-open .list-panel { flex: 0 0 420px; border-right: 1px solid var(--border); background: #f8fafc; }
+        
+        .search-container { padding: 30px; display: flex; gap: 15px; align-items: center; }
+        .search-input-wrapper { display: flex; background: #ffffff; border: 1px solid var(--border); border-radius: 14px; padding: 14px 20px; flex: 1; box-shadow: 0 2px 10px rgba(0,0,0,0.03); transition: 0.3s; }
+        .search-input-wrapper:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(59,130,246,0.1); }
+        .search-input-wrapper input { border: none; outline: none; width: 100%; font-size: 15px; background: transparent; margin-left: 12px; color: var(--text-main); }
+        .search-input-wrapper input::placeholder { color: #94a3b8; font-weight: 500; }
+        .btn-refresh { padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: #ffffff; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
+        .btn-refresh:hover { background: #f1f5f9; transform: rotate(15deg); }
+
+        .doc-list-container { flex: 1; overflow-y: auto; padding: 0 30px 30px 30px; }
+        .doc-list-container::-webkit-scrollbar { width: 6px; }
+        .doc-list-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .doc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
+        .app-container.pdf-open .doc-list { display: flex; flex-direction: column; padding-right: 10px; }
+
+        .doc-card { padding: 24px; border-radius: 18px; background: var(--bg-card); border: 1px solid var(--border); cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); }
+        .doc-card:hover { transform: translateY(-4px); border-color: #cbd5e1; box-shadow: 0 12px 25px rgba(0, 0, 0, 0.06); }
+        .doc-card.active { border-color: var(--accent); background: #f8fafc; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+        .doc-header { display: flex; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
+        .info-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; display: block; letter-spacing: 0.5px;}
+        .doc-badge { background: #eff6ff; color: var(--accent); padding: 8px 12px; border-radius: 8px; font-size: 14px; font-weight: 800; }
+        .doc-date-box { text-align: right; } .doc-date-val { font-size: 14px; font-weight: 700; color: var(--text-main); }
+        .doc-title-val { font-size: 15px; font-weight: 700; color: var(--text-main); line-height: 1.4; margin-bottom: 10px; }
+        
+        .doc-cat-badge { display: inline-block; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px; margin-bottom: 12px;}
+        
+        .doc-note-box { background: #f8fafc; padding: 12px 14px; border-radius: 10px; border: 1px solid #f1f5f9; }
+        .doc-note-val { font-size: 13px; color: var(--text-muted); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .pdf-viewer { width: 0; opacity: 0; background: #cbd5e1; display: flex; flex-direction: column; transition: 0.4s; border-left: 1px solid var(--border); }
+        .app-container.pdf-open .pdf-viewer { width: auto; flex: 1; opacity: 1; }
+        .pdf-header { padding: 18px 30px; background: #ffffff; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .pdf-header-title { font-size: 16px; font-weight: 800; color: var(--text-main); }
+        .action-buttons { display: flex; gap: 12px; }
+        .btn-action { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; border: 1px solid transparent; background: #ffffff; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .btn-edit { color: var(--warning); border-color: #fde68a; } .btn-edit:hover { background: #fffbeb; transform: translateY(-1px); }
+        .btn-delete { color: var(--danger); border-color: #fca5a5; } .btn-delete:hover { background: #fef2f2; transform: translateY(-1px); }
+        .btn-close { color: var(--text-main); border-color: var(--border); } .btn-close:hover { background: #f1f5f9; }
+        iframe { width: 100%; height: 100%; border: none; background: #e2e8f0; } 
+
+        .overlay { position: fixed; top: 65px; left: 0; width: 100%; height: calc(100% - 65px); background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(6px); display: flex; justify-content: center; align-items: center; z-index: 1000; transition: all 0.3s ease; }
+        .overlay.hidden { opacity: 0; pointer-events: none; }
+        
+        .modal-small { background: #ffffff; padding: 35px 45px; border-radius: 24px; width: 450px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 25px 50px rgba(0,0,0,0.15); transform: scale(1) translateY(0); transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .overlay.hidden .modal-small { transform: scale(0.9) translateY(20px); }
+        .modal-small h2 { margin-bottom: 15px; font-size: 22px; color: var(--text-main); font-weight: 800; }
+        
+        .dialog-overlay { z-index: 10005; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); }
+        .dialog-icon { font-size: 40px; margin-bottom: 15px; display: block; }
+        .dialog-message { font-size: 15px; color: var(--text-muted); line-height: 1.6; margin-bottom: 25px; font-weight: 500; }
+
+        .modal-fullscreen { background: #ffffff; width: 92vw; height: 90vh; max-width: 1600px; border-radius: 24px; display: flex; overflow: hidden; box-shadow: 0 30px 60px rgba(0,0,0,0.2); transform: scale(1) translateY(0); transition: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); border: 1px solid var(--border); }
+        .overlay.hidden .modal-fullscreen { transform: scale(0.95) translateY(30px); }
+        
+        .modal-form-side { width: 420px; background: #ffffff; padding: 40px; display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow-y: auto; }
+        .modal-form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .modal-form-header h2 { margin: 0; font-size: 24px; color: var(--text-main); font-weight: 800; }
+        .btn-modal-close { background: #f1f5f9; border: none; font-size: 24px; color: #64748b; cursor: pointer; transition: 0.2s; width: 36px; height: 36px; border-radius: 10px; display: flex; justify-content: center; align-items: center; }
+        .btn-modal-close:hover { background: #fee2e2; color: var(--danger); transform: rotate(90deg); }
+        
+        .form-content { display: flex; flex-direction: column; gap: 20px; margin-bottom: auto; }
+        
+        .form-row { display: flex; gap: 15px; }
+        .form-group { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+        .form-group label { font-size: 13px; font-weight: 700; color: var(--text-muted); margin: 0;}
+        .form-control { width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); font-size: 14px; outline: none; background: #f8fafc; transition: all 0.3s; color: var(--text-main); font-weight: 500; }
+        .form-control:focus { background: #ffffff; border-color: var(--accent); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); }
+        textarea.form-control { height: 120px; resize: none; }
+        
+        .modal-actions { display: flex; justify-content: flex-end; gap: 15px; padding-top: 25px; border-top: 1px solid #f1f5f9; margin-top: 25px; }
+        .btn { padding: 14px 26px; border-radius: 12px; border: none; cursor: pointer; font-weight: 700; font-size: 14px; transition: all 0.3s ease; }
+        .btn-cancel { background: #f1f5f9; color: var(--text-muted); }
+        .btn-cancel:hover { background: #e2e8f0; color: var(--text-main); }
+        .btn-save { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 4px 15px rgba(59,130,246,0.3); }
+        .btn-save:hover { background: linear-gradient(135deg, #2563eb, #1d4ed8); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59,130,246,0.4); }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 15px rgba(239,68,68,0.3); }
+        .btn-danger:hover { background: linear-gradient(135deg, #dc2626, #b91c1c); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(239,68,68,0.4); }
+
+        .modal-pdf-side { flex: 1; background: #f8fafc; display: flex; justify-content: center; align-items: center; position: relative; }
+        .modal-pdf-side iframe { width: 100%; height: 100%; border: none; }
+
+        .pdf-drop-zone-large { border: 3px dashed #93c5fd; background: #eff6ff; border-radius: 24px; width: 80%; max-width: 600px; height: 320px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s ease; }
+        .pdf-drop-zone-large:hover, .pdf-drop-zone-large.dragover { background: #dbeafe; border-color: var(--accent); transform: scale(1.03); box-shadow: 0 10px 30px rgba(59,130,246,0.1); }
+        .pdf-drop-zone-large .icon { font-size: 64px; margin-bottom: 20px; transition: 0.3s; }
+        .pdf-drop-zone-large.dragover .icon { transform: translateY(-10px); }
+        .pdf-drop-zone-large .text { font-size: 20px; font-weight: 800; color: var(--accent); margin-bottom: 10px;}
+        .pdf-drop-zone-large .sub-text { font-size: 15px; color: #64748b; font-weight: 500; }
+        
+        .cat-list-box { max-height: 140px; overflow-y: auto; background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 10px; margin-top: 10px;}
+        .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 700; color: var(--text-main);}
+        .cat-item:last-child { border-bottom: none; }
+        .btn-del-cat { background: #fee2e2; color: var(--danger); border: none; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-weight: bold; transition: 0.2s;}
+        .btn-del-cat:hover { background: var(--danger); color: white; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="splashScreen" class="splash-screen">
+        <div class="splash-content">
+            <h1>DYS <span>Numarataj</span></h1>
+            <div class="splash-text" id="splashText">Sistem başlatılıyor...</div>
+            <div class="progress-bar"><div class="progress-fill" id="splashProgress"></div></div>
+        </div>
+        <div class="splash-copyright">Copyright © 2026 TONOZ</div>
+    </div>
+
+    <div id="notificationArea" class="notification-area"></div>
+
+    <div class="overlay dialog-overlay hidden" id="customDialogOverlay">
+        <div class="modal-small" style="text-align: center; width: 400px; padding: 40px 30px;">
+            <span class="dialog-icon" id="dialogIcon">🔔</span>
+            <h2 id="dialogTitle">Bilgi</h2>
+            <div class="dialog-message" id="dialogMessage">Mesaj buraya gelecek.</div>
+            <div class="modal-actions" style="justify-content: center; border: none; margin-top: 0; padding-top: 0;">
+                <button class="btn btn-cancel" id="dialogCancelBtn" style="display: none;">İptal</button>
+                <button class="btn btn-save" id="dialogConfirmBtn" style="min-width: 120px;">Tamam</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="titlebar">
+        <div class="titlebar-brand">
+            <div class="titlebar-logo">🏛️</div>
+            <div class="titlebar-text">
+                <span class="titlebar-text-top">Numarataj Şube Müdürlüğü</span>
+                <span class="titlebar-text-bottom">Dosya Yönetim Sistemi (DYS)</span>
+            </div>
+        </div>
+        <div class="titlebar-controls">
+            <button class="win-btn" onclick="window.electronAPI.minimizeApp()">&#8211;</button>
+            <button class="win-btn" onclick="window.electronAPI.maximizeApp()">&#9723;</button>
+            <button class="win-btn win-btn-close" onclick="window.electronAPI.closeApp()">&#10005;</button>
+        </div>
+    </div>
+
+    <div class="overlay hidden" id="setupScreen">
+        <div class="modal-small" style="text-align: center;">
+            <span class="dialog-icon">🔌</span>
+            <h2 style="color: var(--text-main)">Ağ Bağlantısı Gerekli</h2>
+            <p style="margin-bottom: 25px; color: var(--text-muted); font-size: 14px; line-height: 1.6;">Lütfen ağ üzerinde oluşturulmuş <br><b style="color:var(--danger)">DYS ARŞİV</b><br>isimli ortak klasörü seçin.</p>
+            <button class="btn btn-save" onclick="selectArchiveFolder()" style="width: 100%;">📁 Klasörü Seç ve Bağlan</button>
+        </div>
+    </div>
+
+    <div class="overlay hidden" id="versionErrorScreen" style="z-index: 10001; background: rgba(15, 23, 42, 0.8);">
+        <div class="modal-small" style="text-align: center; border: 2px solid var(--danger);">
+            <span class="dialog-icon">⛔</span>
+            <h2 style="color: var(--danger); font-size: 24px;">Erişim Engellendi</h2>
+            <p style="margin-bottom: 25px; color: var(--text-main); font-size: 15px; line-height: 1.6; font-weight: 600;">
+                Güncel versiyon mevcut. Veri güvenliği için girişiniz engellendi.<br><br>
+                <span style="color: var(--danger)">Lütfen eski versiyonu silip, yeni versiyonu yükleyin!</span>
+            </p>
+            <button class="btn btn-danger" style="width: 100%;" onclick="window.electronAPI.closeApp()">Uygulamayı Kapat</button>
+        </div>
+    </div>
+
+    <div class="overlay hidden" id="settingsModal">
+        <div class="modal-small" style="width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">⚙️ Sistem Ayarları</h2>
+                <button class="btn-modal-close" onclick="document.getElementById('settingsModal').classList.add('hidden')" style="width: 32px; height: 32px; font-size: 20px;">&times;</button>
+            </div>
+            
+            <div class="form-group">
+                <label>Mevcut Ağ Klasörü Yolu</label>
+                <div style="display: flex; gap:10px;">
+                    <input type="text" id="currentPathInput" class="form-control" readonly style="color:var(--accent); font-weight: 700;">
+                    <button class="btn btn-cancel" onclick="selectArchiveFolder()">Değiştir</button>
+                </div>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border); margin: 25px 0;">
+            
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Evrak Kategorileri (Klasör Yönetimi)</label>
+                <div style="display: flex; gap:10px;">
+                    <input type="text" id="newCatInput" class="form-control" placeholder="Örn: Meclis Kararları">
+                    <button class="btn btn-save" onclick="addNewCategory()">Ekle</button>
+                </div>
+                <div class="cat-list-box" id="catListBox"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay hidden" id="uploadModal">
+        <div class="modal-fullscreen">
+            <div class="modal-form-side">
+                <div class="modal-form-header">
+                    <h2 id="modalTitle">Yeni Evrak Girişi</h2>
+                    <button class="btn-modal-close" onclick="closeModal()">&times;</button>
+                </div>
+                
+                <div class="form-content">
+                    <div class="form-row">
+                        <div class="form-group"><label>Kayıt Tarihi</label><input type="date" id="formDate" class="form-control"></div>
+                        <div class="form-group"><label>Evrak No</label><input type="text" id="formNo" class="form-control" placeholder="Örn: 2026/145"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Evrak Klasörü (Kategori)</label>
+                        <select id="formCategory" class="form-control"></select>
+                    </div>
+                    <div class="form-group"><label>Konu Özeti</label><input type="text" id="formTitle" class="form-control" placeholder="İsimlendirme vs."></div>
+                    <div class="form-group"><label>Detaylı Notlar</label><textarea id="formNote" class="form-control" placeholder="Açıklamalar, parsel bilgileri..."></textarea></div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn btn-cancel" onclick="closeModal()">İptal</button>
+                    <button class="btn btn-save" onclick="saveDocument()">Sisteme Kaydet</button>
+                </div>
+            </div>
+            
+            <div class="modal-pdf-side" id="modalPdfSide">
+                <div class="pdf-drop-zone-large" id="pdfDropZoneLarge" onclick="pickPdf()">
+                    <span class="icon">📄</span>
+                    <div class="text">PDF Seçmek İçin Tıklayın</div>
+                    <div class="sub-text">veya dosyayı bu alana sürükleyip bırakın</div>
+                </div>
+                <iframe id="modalPdfFrame" class="hidden"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container" id="mainContent">
+        <div class="dock">
+            <button class="btn-dock-add" onclick="openModal()" title="Yeni Evrak Ekle">+</button>
+            <div class="dock-divider"></div>
+            <div id="yearFolders" class="dock-years"></div>
+            <button class="btn-settings" onclick="openSettings()" title="Ayarlar">⚙</button>
+        </div>
+        <div class="list-panel">
+            <div class="search-container">
+                <div class="search-input-wrapper">
+                    <span style="color: var(--accent); font-size: 18px;">⌕</span>
+                    <input type="text" id="searchInput" placeholder="Evrak, Not veya Kategori Ara..." onkeyup="filterDocs()">
+                </div>
+                <button class="btn-refresh" onclick="loadDocuments()" title="Tazele">↻</button>
+            </div>
+            <div class="doc-list-container"><div class="doc-list" id="docList"></div></div>
+        </div>
+        <div class="pdf-viewer">
+            <div class="pdf-header">
+                <span class="pdf-header-title" id="pdfTitle">Evrak Önizleme</span>
+                <div class="action-buttons">
+                    <button class="btn-action btn-edit" id="btnEditView" onclick="editCurrentDoc()">✏️ Düzenle</button>
+                    <button class="btn-action btn-delete" id="btnDeleteView" onclick="deleteCurrentDoc()">🗑️ Sil</button>
+                    <button class="btn-action btn-close" onclick="closePdfViewer()">✖ Kapat</button>
+                </div>
+            </div>
+            <iframe id="pdfFrame"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const APP_VERSION = 1.0; 
+        let archivePath = localStorage.getItem('dys_archive_path');
+        let documents = [];
+        let categories = [];
+        let currentPdfPath = null;
+        let activeYear = 'Tümü';
+        let sortDesc = true; 
+        let isEditMode = false;
+        let editDocData = null;
+
+        function customAlert(message, title = 'Bilgi', type = 'info') {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('customDialogOverlay');
+                document.getElementById('dialogTitle').innerText = title;
+                document.getElementById('dialogMessage').innerHTML = message;
+                
+                const iconMap = { 'info': '🔔', 'error': '❌', 'success': '✅', 'warning': '⚠️' };
+                document.getElementById('dialogIcon').innerText = iconMap[type] || '🔔';
+                
+                document.getElementById('dialogCancelBtn').style.display = 'none';
+                
+                const confirmBtn = document.getElementById('dialogConfirmBtn');
+                confirmBtn.innerText = 'Tamam';
+                confirmBtn.className = type === 'error' ? 'btn btn-danger' : 'btn btn-save';
+                
+                overlay.classList.remove('hidden');
+                
+                confirmBtn.onclick = () => { overlay.classList.add('hidden'); resolve(true); };
+            });
+        }
+
+        function customConfirm(message, title = 'Onay Gerekli', type = 'warning') {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('customDialogOverlay');
+                document.getElementById('dialogTitle').innerText = title;
+                document.getElementById('dialogMessage').innerHTML = message;
+                
+                const iconMap = { 'info': '🔔', 'error': '❌', 'success': '✅', 'warning': '⚠️' };
+                document.getElementById('dialogIcon').innerText = iconMap[type] || '⚠️';
+                
+                document.getElementById('dialogCancelBtn').style.display = 'block';
+                
+                const confirmBtn = document.getElementById('dialogConfirmBtn');
+                confirmBtn.innerText = 'Evet, Onaylıyorum';
+                confirmBtn.className = type === 'danger' ? 'btn btn-danger' : 'btn btn-save';
+                
+                overlay.classList.remove('hidden');
+                
+                confirmBtn.onclick = () => { overlay.classList.add('hidden'); resolve(true); };
+                document.getElementById('dialogCancelBtn').onclick = () => { overlay.classList.add('hidden'); resolve(false); };
+            });
+        }
+
+        function showNotification(type, message) {
+            const area = document.getElementById('notificationArea');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            let icon = type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️';
+            toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${message}</span>`;
+            area.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3000);
+        }
+
+        window.onload = async () => {
+            const splash = document.getElementById('splashScreen');
+            const sText = document.getElementById('splashText');
+            const sProg = document.getElementById('splashProgress');
+            
+            if (!archivePath) {
+                splash.style.opacity = '0'; setTimeout(() => { splash.style.display = 'none'; splash.classList.add('hidden'); }, 500);
+                document.getElementById('setupScreen').classList.remove('hidden'); return;
+            }
+
+            sText.innerText = "Arşive bağlanılıyor..."; sProg.style.width = "25%";
+            await new Promise(r => setTimeout(r, 1000));
+            
+            const exists = await window.electronAPI.checkFolder(archivePath);
+            if(!exists || !archivePath.toUpperCase().endsWith("DYS ARŞİV")) {
+                splash.style.opacity = '0'; setTimeout(() => { splash.style.display = 'none'; splash.classList.add('hidden'); }, 500);
+                document.getElementById('setupScreen').classList.remove('hidden');
+                showNotification('error', "Bağlantı koptu veya klasör adı yanlış!"); return;
+            }
+
+            sText.innerText = "Versiyon kontrol ediliyor... (v" + APP_VERSION + ")"; sProg.style.width = "50%";
+            await new Promise(r => setTimeout(r, 1000));
+            const vCheck = await window.electronAPI.checkVersion(archivePath, APP_VERSION);
+            if(!vCheck.ok) {
+                splash.style.display = 'none'; splash.classList.add('hidden');
+                document.getElementById('versionErrorScreen').classList.remove('hidden'); return; 
+            }
+
+            sText.innerText = "Dosyalar ve Klasörler getiriliyor..."; sProg.style.width = "75%";
+            await new Promise(r => setTimeout(r, 1000));
+            await loadCategories();
+            documents = await window.electronAPI.loadDb(archivePath);
+
+            sText.innerText = "Menüler hazırlanıyor..."; sProg.style.width = "100%";
+            await new Promise(r => setTimeout(r, 800));
+            
+            renderYearFolders(); filterDocs();
+            splash.style.opacity = '0'; setTimeout(() => { splash.style.display = 'none'; splash.classList.add('hidden'); }, 800);
+            showNotification('success', "Sistem Başarıyla Başlatıldı!");
+        };
+
+        async function loadCategories() {
+            categories = await window.electronAPI.getCategories(archivePath);
+            renderCategorySettings();
+            renderCategoryDropdown();
+        }
+        function renderCategorySettings() {
+            const box = document.getElementById('catListBox'); box.innerHTML = '';
+            categories.forEach((cat, idx) => {
+                box.innerHTML += `<div class="cat-item"><span>📁 ${cat}</span><button class="btn-del-cat" onclick="deleteCategory(${idx})">✖</button></div>`;
+            });
+        }
+        function renderCategoryDropdown() {
+            const select = document.getElementById('formCategory'); select.innerHTML = '';
+            categories.forEach(cat => { select.innerHTML += `<option value="${cat}">${cat}</option>`; });
+        }
+        async function addNewCategory() {
+            const val = document.getElementById('newCatInput').value.trim();
+            if(val && !categories.includes(val)) {
+                categories.push(val);
+                document.getElementById('newCatInput').value = '';
+                await window.electronAPI.saveCategories(archivePath, categories);
+                await loadCategories();
+                showNotification('success', 'Kategori Eklendi.');
+            } else if (val) {
+                await customAlert("Bu kategori zaten mevcut!", "Uyarı", "warning");
+            }
+        }
+        async function deleteCategory(idx) {
+            const isConfirmed = await customConfirm("Kategoriyi silmek istediğinize emin misiniz?<br>(Geçmiş dosyalar klasörde durmaya devam eder)", "Kategori Sil", "danger");
+            if(isConfirmed) {
+                categories.splice(idx, 1);
+                await window.electronAPI.saveCategories(archivePath, categories);
+                await loadCategories();
+            }
+        }
+
+        function openSettings() {
+            document.getElementById('currentPathInput').value = archivePath || "Tanımlanmamış";
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        async function selectArchiveFolder() {
+            const path = await window.electronAPI.selectFolder();
+            if (path) {
+                if (!path.toUpperCase().endsWith("DYS ARŞİV")) { 
+                    await customAlert('Seçilen klasörün adı mutlaka <b>DYS ARŞİV</b> olmalıdır!', 'Geçersiz Klasör', 'error'); 
+                    return; 
+                }
+                archivePath = path; localStorage.setItem('dys_archive_path', path);
+                document.getElementById('setupScreen').classList.add('hidden');
+                document.getElementById('settingsModal').classList.add('hidden');
+                showNotification('success', "Arşiv bağlandı. Lütfen programı yeniden başlatın.");
+                setTimeout(() => window.electronAPI.closeApp(), 2500); 
+            }
+        }
+
+        async function loadDocuments() {
+            documents = await window.electronAPI.loadDb(archivePath);
+            renderYearFolders(); filterDocs();
+            if (editDocData && document.getElementById('mainContent').classList.contains('pdf-open')) {
+                const updatedDoc = documents.find(d => d.id === editDocData.id);
+                if(updatedDoc) {
+                    document.getElementById('pdfFrame').src = `file://${updatedDoc.filePath}`;
+                    document.getElementById('pdfTitle').innerText = `${updatedDoc.year}/${updatedDoc.docNo} - ${updatedDoc.title}`;
+                    editDocData = updatedDoc;
+                } else closePdfViewer();
+            }
+        }
+
+        function renderYearFolders() {
+            const container = document.getElementById('yearFolders'); container.innerHTML = '';
+            const years = [...new Set(documents.map(d => d.year))].sort().reverse();
+            container.appendChild(createYearBtn('Tümü', activeYear === 'Tümü'));
+            years.forEach(year => container.appendChild(createYearBtn(year, activeYear === year)));
+        }
+
+        function createYearBtn(year, isActive) {
+            const btn = document.createElement('button'); btn.className = `year-dock-btn ${isActive ? 'active' : ''}`;
+            btn.innerText = year === 'Tümü' ? 'Hepsi' : year;
+            btn.onclick = () => { activeYear = year; renderYearFolders(); filterDocs(); closePdfViewer(); };
+            return btn;
+        }
+
+        function filterDocs() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            let filtered = documents;
+            if (activeYear !== 'Tümü') filtered = filtered.filter(d => d.year === activeYear);
+            if (query) {
+                filtered = filtered.filter(d => (d.title && d.title.toLowerCase().includes(query)) || (d.note && d.note.toLowerCase().includes(query)) || (d.docNo && d.docNo.toLowerCase().includes(query)) || (d.category && d.category.toLowerCase().includes(query)));
+            }
+            filtered.sort((a, b) => new Date(b.docDate || b.dateAdded) - new Date(a.docDate || a.dateAdded));
+            renderList(filtered);
+        }
+
+        function closePdfViewer() {
+            document.getElementById('mainContent').classList.remove('pdf-open');
+            document.querySelectorAll('.doc-card').forEach(c => c.classList.remove('active'));
+            setTimeout(() => { document.getElementById('pdfFrame').src = ""; }, 400); editDocData = null; 
+        }
+
+        function openPdfViewer(cardElement, doc) {
+            if (editDocData && editDocData.id === doc.id && document.getElementById('mainContent').classList.contains('pdf-open')) { closePdfViewer(); return; }
+            document.querySelectorAll('.doc-card').forEach(c => c.classList.remove('active'));
+            if(cardElement) cardElement.classList.add('active');
+            
+            editDocData = doc; 
+            document.getElementById('mainContent').classList.add('pdf-open');
+            document.getElementById('btnEditView').style.display = 'block'; document.getElementById('btnDeleteView').style.display = 'block';
+            document.getElementById('pdfFrame').src = `file://${doc.filePath}`;
+            document.getElementById('pdfTitle').innerText = `${doc.year}/${doc.docNo} - ${doc.title}`;
+        }
+
+        function renderList(docs) {
+            const list = document.getElementById('docList'); list.innerHTML = '';
+            docs.forEach(doc => {
+                const card = document.createElement('div'); card.className = 'doc-card';
+                if(editDocData && editDocData.id === doc.id) card.classList.add('active');
+                card.onclick = () => openPdfViewer(card, doc);
+                const d = new Date(doc.docDate);
+                const dateString = d.toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' });
+                card.innerHTML = `
+                    <div class="doc-header"><div class="doc-badge"><span class="info-label">Evrak No</span>${doc.docNo}</div><div class="doc-date-box"><span class="info-label">Evrak Tarihi</span><div class="doc-date-val">${dateString}</div></div></div>
+                    <div class="doc-title-val">${doc.title}</div>
+                    <div class="doc-cat-badge">📁 ${doc.category || 'Genel Evrak'}</div>
+                    <div class="doc-note-box"><span class="info-label">Açıklama / Notlar</span><div class="doc-note-val">${doc.note || 'Not girilmemiş.'}</div></div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        async function deleteCurrentDoc() {
+            if(!editDocData) return;
+            const isConfirmed = await customConfirm(`Evrak No: <b>${editDocData.docNo}</b> kalıcı olarak SİLİNECEKTİR.<br>Emin misiniz?`, "Kalıcı Silme İşlemi", "danger");
+            if (isConfirmed) {
+                const result = await window.electronAPI.deleteDoc({ id: editDocData.id, filePath: editDocData.filePath, archiveRoot: archivePath });
+                if (result.success) { 
+                    showNotification('success', 'Evrak başarıyla silindi.');
+                    closePdfViewer(); closeModal(); await loadDocuments(); 
+                } else await customAlert("Silme Hatası tespit edildi!", "Hata", "error");
+            }
+        }
+
+        const modalPdfSide = document.getElementById('modalPdfSide');
+        modalPdfSide.addEventListener('dragover', (e) => { e.preventDefault(); if(!document.getElementById('pdfDropZoneLarge').classList.contains('hidden')) document.getElementById('pdfDropZoneLarge').classList.add('dragover'); });
+        modalPdfSide.addEventListener('dragleave', (e) => { e.preventDefault(); document.getElementById('pdfDropZoneLarge').classList.remove('dragover'); });
+        modalPdfSide.addEventListener('drop', (e) => {
+            e.preventDefault(); document.getElementById('pdfDropZoneLarge').classList.remove('dragover');
+            if(e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if(file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) processSelectedPdf(file.path, file.name);
+                else showNotification('error', "Lütfen geçerli bir PDF sürükleyin!");
+            }
+        });
+        
+        async function pickPdf() {
+            const path = await window.electronAPI.selectPdf();
+            if (path) processSelectedPdf(path, path.split('\\').pop());
+        }
+        
+        function processSelectedPdf(path, fileName) {
+            currentPdfPath = path;
+            document.getElementById('pdfDropZoneLarge').classList.add('hidden');
+            document.getElementById('modalPdfFrame').classList.remove('hidden');
+            document.getElementById('modalPdfFrame').src = `file://${path}`;
+            showNotification('success', `PDF Yüklendi.`);
+        }
+
+        function openModal(isEdit = false) { 
+            isEditMode = isEdit;
+            document.getElementById('modalTitle').innerText = isEdit ? "Evrak Düzenle" : "Yeni Evrak Girişi";
+            document.getElementById('uploadModal').classList.remove('hidden'); 
+            
+            if(isEdit) {
+                document.getElementById('pdfDropZoneLarge').classList.add('hidden');
+                document.getElementById('modalPdfFrame').classList.remove('hidden');
+            } else {
+                document.getElementById('formDate').valueAsDate = new Date();
+                document.getElementById('pdfDropZoneLarge').classList.remove('hidden');
+                document.getElementById('modalPdfFrame').classList.add('hidden');
+            }
+        }
+        
+        function closeModal() { 
+            document.getElementById('uploadModal').classList.add('hidden');
+            currentPdfPath = null;
+            document.getElementById('formNo').value = ''; document.getElementById('formTitle').value = ''; document.getElementById('formNote').value = '';
+            document.getElementById('modalPdfFrame').src = ''; 
+        }
+
+        function editCurrentDoc() {
+            if(!editDocData) return;
+            document.getElementById('formDate').value = editDocData.docDate || '';
+            document.getElementById('formNo').value = editDocData.docNo;
+            document.getElementById('formTitle').value = editDocData.title;
+            document.getElementById('formNote').value = editDocData.note;
+            document.getElementById('formCategory').value = editDocData.category || 'Genel Evrak';
+            openModal(true);
+            document.getElementById('modalPdfFrame').src = `file://${editDocData.filePath}`;
+        }
+
+        async function saveDocument() {
+            const docDate = document.getElementById('formDate').value;
+            if(!docDate || !document.getElementById('formNo').value || !document.getElementById('formTitle').value) { 
+                await customAlert("Tarih, Evrak No ve Konu Özeti zorunludur.", "Eksik Bilgi", "warning"); 
+                return; 
+            }
+            
+            const btn = document.querySelector('.btn-save'); const originalText = btn.innerText;
+            btn.innerText = "İşleniyor..."; btn.disabled = true;
+
+            const data = {
+                sourcePdf: currentPdfPath, archiveRoot: archivePath,
+                year: docDate.split('-')[0], docDate: docDate,
+                category: document.getElementById('formCategory').value,
+                docNo: document.getElementById('formNo').value, title: document.getElementById('formTitle').value, note: document.getElementById('formNote').value
+            };
+            
+            let result;
+            if (isEditMode) {
+                data.id = editDocData.id; data.oldYear = editDocData.year; data.oldCategory = editDocData.category; data.oldFilePath = editDocData.filePath;
+                result = await window.electronAPI.updateDoc(data);
+            } else {
+                if (!currentPdfPath) { 
+                    await customAlert("Lütfen formu kaydetmeden önce bir PDF dosyası seçin veya sürükleyin.", "PDF Eksik", "warning"); 
+                    btn.innerText = originalText; btn.disabled = false; 
+                    return; 
+                }
+                result = await window.electronAPI.saveDoc(data);
+            }
+            
+            if (result.success) { 
+                showNotification('success', isEditMode ? 'Evrak güncellendi.' : 'Yeni evrak eklendi.');
+                closeModal(); document.getElementById('searchInput').value = ''; 
+                await loadDocuments(); 
+                if(!isEditMode) closePdfViewer(); 
+            } else await customAlert("İşlem sırasında bir hata oluştu!", "Hata", "error");
+            
+            btn.innerText = originalText; btn.disabled = false;
+        }
+    </script>
+</body>
+</html>

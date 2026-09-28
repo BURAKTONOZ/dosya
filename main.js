@@ -6,6 +6,7 @@ let mainWindow;
 
 const DB_FILE = 'dys_database.json';
 const CAT_FILE = 'dys_categories.json';
+const TEXT_DIR = 'dys_text';
 const LOCK_FILE = 'dys_database.lock';
 
 function createWindow() {
@@ -68,6 +69,12 @@ function moveFile(from, to) {
     catch { fs.copyFileSync(from, to); fs.unlinkSync(from); }
 }
 // Yaklaşık benzersiz sayısal id (iki kullanıcı aynı milisaniyede kayıt yapsa bile çakışmaz)
+// Sürüm karşılaştırma: "2.1.0" > "2.0.9" > 1 (eski sayısal sürümler de desteklenir)
+function cmpVer(a, b) {
+    const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+    for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; }
+    return 0;
+}
 const newId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000);
 
 /* ---------- Klasör / versiyon ---------- */
@@ -80,7 +87,7 @@ ipcMain.handle('check-version', (event, archiveRoot, appVersion) => {
         const versionPath = path.join(archiveRoot, 'version.json');
         if (fs.existsSync(versionPath)) {
             const data = JSON.parse(fs.readFileSync(versionPath, 'utf-8'));
-            if (data.version > appVersion) return { ok: false, dbVer: data.version };
+            if (cmpVer(data.version, appVersion) > 0) return { ok: false, dbVer: data.version };
         }
         fs.writeFileSync(versionPath, JSON.stringify({ version: appVersion }));
         return { ok: true };
@@ -135,9 +142,10 @@ ipcMain.handle('save-doc', async (event, data) => {
         destPath = path.join(destFolder, fileName);
         fs.copyFileSync(sourcePdf, destPath);
 
-        db.unshift({ id: newId(), year: String(year), category: category || 'Genel Evrak', docDate, docNo, title, note, fileName, filePath: destPath, dateAdded: new Date().toISOString() });
+        const doc = { id: newId(), year: String(year), category: category || 'Genel Evrak', docDate, docNo, title, note, fileName, filePath: destPath, dateAdded: new Date().toISOString() };
+        db.unshift(doc);
         writeJson(path.join(archiveRoot, DB_FILE), db);
-        return { success: true };
+        return { success: true, doc };
     } catch (error) {
         // Kayıt başarısızsa yetim PDF bırakma
         try { if (destPath && fs.existsSync(destPath)) fs.unlinkSync(destPath); } catch {}
@@ -188,7 +196,44 @@ ipcMain.handle('delete-doc', async (event, data) => {
         const db = readDb(archiveRoot).filter((d) => d.id !== id);
         writeJson(path.join(archiveRoot, DB_FILE), db);
         try { if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+        try { fs.unlinkSync(path.join(archiveRoot, TEXT_DIR, id + '.json')); } catch {}
         return { success: true };
     } catch (error) { return { success: false, error: error.message }; }
     finally { if (lockPath) releaseLock(lockPath); }
+});
+
+/* ---------- OCR / metin dosyaları (arşivde dys_text/<id>.json) ---------- */
+const norm = (t) => String(t || '').replace(/İ/g, 'i').replace(/I/g, 'i').toLowerCase()
+    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
+
+ipcMain.handle('read-pdf', async (e, p) => { try { return fs.readFileSync(p); } catch { return null; } });
+
+ipcMain.handle('get-text', async (e, root, id) => {
+    try { return JSON.parse(fs.readFileSync(path.join(root, TEXT_DIR, id + '.json'), 'utf-8')); } catch { return null; }
+});
+ipcMain.handle('save-text', async (e, root, id, obj) => {
+    try {
+        fs.mkdirSync(path.join(root, TEXT_DIR), { recursive: true });
+        writeJson(path.join(root, TEXT_DIR, id + '.json'), obj);
+        return { success: true };
+    } catch (err) { return { success: false, error: err.message }; }
+});
+ipcMain.handle('text-ids', async (e, root) => {
+    try { return fs.readdirSync(path.join(root, TEXT_DIR)).filter((f) => f.endsWith('.json')).map((f) => Number(f.slice(0, -5))); } catch { return []; }
+});
+// PDF içi arama: sorgudaki tüm kelimeler aynı sayfada geçmeli. Sonuç: { id: [sayfa numaraları] }
+ipcMain.handle('search-text', async (e, root, query) => {
+    const words = norm(query).split(/\s+/).filter(Boolean), out = {};
+    if (!words.length) return out;
+    let files = [];
+    try { files = fs.readdirSync(path.join(root, TEXT_DIR)).filter((f) => f.endsWith('.json')); } catch { return out; }
+    for (const f of files) {
+        try {
+            const t = JSON.parse(fs.readFileSync(path.join(root, TEXT_DIR, f), 'utf-8'));
+            const hits = [];
+            (t.pages || []).forEach((pg, i) => { const n = norm(pg); if (words.every((w) => n.includes(w))) hits.push(i + 1); });
+            if (hits.length) out[f.slice(0, -5)] = hits;
+        } catch {}
+    }
+    return out;
 });

@@ -12,14 +12,14 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Bağımlılıkları yükle (OCR + PDF okuyucu dahil)
-        run: npm install --no-audit --no-fund
+        run: npm install --omit=optional --no-audit --no-fund
 
       - name: Derle
         run: npx electron-builder --win portable --publish never

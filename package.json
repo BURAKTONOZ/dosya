@@ -8,36 +8,20 @@
     "build": "electron-builder --publish never"
   },
   "author": "BURAK TONOZ",
-  "dependencies": {
-    "@tesseract.js-data/tur": "^1.0.0",
-    "pdfjs-dist": "3.11.174",
-    "tesseract.js": "^5.1.1"
-  },
   "build": {
     "appId": "com.tonoz.dys",
     "productName": "DYS",
     "copyright": "Copyright © 2026 - TONOZ",
-    "asar": false,
-    "files": [
-      "main.js",
-      "preload.js",
-      "index.html",
-      "package.json",
-      "!node_modules/pdfjs-dist/{legacy,web,types,image_decoders}/**",
-      "!node_modules/**/*.map"
-    ],
     "win": {
       "target": "portable",
-      "executableName": "DYS",
       "icon": "icon.ico"
     },
     "portable": {
       "artifactName": "DYS.exe"
-    },
-    "npmRebuild": false
+    }
   },
   "devDependencies": {
-    "electron": "~30.5.1",
+    "electron": "^30.0.0",
     "electron-builder": "^24.13.3"
   }
 }

@@ -33,7 +33,8 @@
     },
     "portable": {
       "artifactName": "DYS.exe"
-    }
+    },
+    "npmRebuild": false
   },
   "devDependencies": {
     "electron": "~30.5.1",

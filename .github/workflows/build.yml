@@ -1,51 +1,32 @@
-name: DYS Derleme
+name: Build DYS Portable
 
 on:
-  workflow_dispatch:
   push:
-    tags: ['v*']
-
-permissions:
-  contents: write
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v5
+      - name: Kodu İndir
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v5
+      - name: Node.js Kur
+        uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
 
-      - name: Bağımlılıkları yükle (OCR + PDF okuyucu dahil)
-        run: npm install --omit=optional --no-audit --no-fund
+      - name: Bağımlılıkları Yükle
+        run: npm install
 
-      - name: Derle
-        run: npx electron-builder --win portable --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - name: Programı Paketle (Build)
+        run: npm run build
 
-      - name: OCR dosyaları pakete girmiş mi kontrol et
-        shell: bash
-        run: |
-          base=dist/win-unpacked/resources/app/node_modules
-          for f in \
-            "$base/@tesseract.js-data/tur/4.0.0_best_int/tur.traineddata.gz" \
-            "$base/tesseract.js/dist/worker.min.js" \
-            "$base/tesseract.js-core/tesseract-core-simd-lstm.wasm.js" \
-            "$base/pdfjs-dist/build/pdf.worker.js"; do
-            test -f "$f" || { echo "EKSİK: $f"; exit 1; }
-          done
-          echo "OCR bileşenleri pakette."
-
-      - uses: actions/upload-artifact@v4
+      - name: Exe Dosyasını Sisteme Yükle
+        uses: actions/upload-artifact@v4
         with:
-          name: DYS
+          name: DYS-Portable
           path: dist/DYS.exe
-
-      - name: Sürüm olarak yayınla (yalnızca v* etiketinde)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/DYS.exe

@@ -28,5 +28,5 @@ jobs:
       - name: Exe Dosyasını Sisteme Yükle
         uses: actions/upload-artifact@v4
         with:
-          name: NDYS-Portable
-          path: dist/NDYS.exe
+          name: DYS-Portable
+          path: dist/DYS.exe

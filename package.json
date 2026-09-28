@@ -1,5 +1,5 @@
 {
-  "name": "ndys",
+  "name": "dys",
   "version": "1.0.0",
   "description": "Numarataj Şube Müdürlüğü Dosya Yönetim Sistemi",
   "main": "main.js",
@@ -9,16 +9,16 @@
   },
   "author": "BURAK TONOZ",
   "build": {
-    "appId": "com.tonoz.ndys",
-    "productName": "Numarataj DYS",
+    "appId": "com.tonoz.dys",
+    "productName": "DYS",
     "copyright": "Copyright © 2026 - TONOZ",
     "win": {
       "target": "portable",
-      "executableName": "NDYS",
+      "executableName": "DYS",
       "icon": "build/icon.ico"
     },
     "portable": {
-      "artifactName": "NDYS.exe"
+      "artifactName": "DYS.exe"
     }
   },
   "devDependencies": {

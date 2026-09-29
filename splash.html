@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: transparent; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+    .splash-container {
+      width: 450px; padding: 40px; border-radius: 40px;
+      background: rgba(20, 15, 30, 0.7); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+      border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 20px rgba(155, 77, 255, 0.2);
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+    }
+    .logo { width: 80px; height: 80px; margin-bottom: 20px; border-radius: 50%; box-shadow: 0 0 25px rgba(155, 77, 255, 0.6); }
+    .title { font-size: 24px; font-weight: 800; color: white; margin-bottom: 5px; }
+    .subtitle { font-size: 14px; color: #a09eb5; margin-bottom: 30px; }
+    .loader { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; position: relative; }
+    .loader-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #9b4dff, #4db8ff); border-radius: 10px; transition: width 0.4s ease; box-shadow: 0 0 10px #4db8ff; }
+    .status { margin-top: 15px; font-size: 13px; color: #a09eb5; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="splash-container">
+    <img src="icon.ico" class="logo" onerror="this.style.display='none'">
+    <div class="title">NDYS Yükleniyor</div>
+    <div class="subtitle">Sistem Altyapısı Hazırlanıyor...</div>
+    <div class="loader"><div class="loader-bar" id="bar"></div></div>
+    <div class="status" id="status-text">Veritabanına bağlanılıyor...</div>
+  </div>
+  <script>
+    setTimeout(() => { document.getElementById('bar').style.width = '40%'; document.getElementById('status-text').innerText = 'DYS Arşiv klasörü denetleniyor...'; }, 800);
+    setTimeout(() => { document.getElementById('bar').style.width = '80%'; document.getElementById('status-text').innerText = 'Modüller yükleniyor...'; }, 1800);
+    setTimeout(() => { document.getElementById('bar').style.width = '100%'; document.getElementById('status-text').innerText = 'Sistem hazır!'; }, 3000);
+  </script>
+</body>
+</html>

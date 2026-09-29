@@ -1,239 +1,125 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const sqlite3 = require('sqlite3').verbose();
 
-let mainWindow;
+const userDataPath = app.getPath('userData');
+const configPath = path.join(userDataPath, 'config.json');
 
-const DB_FILE = 'dys_database.json';
-const CAT_FILE = 'dys_categories.json';
-const TEXT_DIR = 'dys_text';
-const LOCK_FILE = 'dys_database.lock';
+let db = null, aktifArsivYolu = null, mainWindow, splashWindow;
 
-function createWindow() {
-    mainWindow = new BrowserWindow({
-        width: 1400, height: 850, minWidth: 1100, minHeight: 700,
-        frame: false, transparent: false, backgroundColor: '#f5eedd', show: false,
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-            contextIsolation: true, nodeIntegration: false
-        }
-    });
-    mainWindow.loadFile('index.html');
-    mainWindow.once('ready-to-show', () => mainWindow.show());
+function getConfig() {
+  if (fs.existsSync(configPath)) return JSON.parse(fs.readFileSync(configPath));
+  return { arsivYolu: null };
+}
+function setConfig(data) {
+  fs.writeFileSync(configPath, JSON.stringify({ ...getConfig(), ...data }));
 }
 
-app.whenReady().then(createWindow);
+function initDB(yol) {
+  aktifArsivYolu = yol;
+  db = new sqlite3.Database(path.join(yol, 'ndys_veritabani.db'), (err) => {
+    if (!err) db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
+  });
+  db.run(`CREATE TABLE IF NOT EXISTS evraklar (id INTEGER PRIMARY KEY AUTOINCREMENT, evrak_sayisi TEXT, evrak_tarihi TEXT, evrak_konusu TEXT, kategori TEXT, kisa_aciklama TEXT, dosya_yolu TEXT, kayit_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+  db.run(`CREATE TABLE IF NOT EXISTS kategoriler (id INTEGER PRIMARY KEY AUTOINCREMENT, ad TEXT UNIQUE)`, () => {
+    db.get(`SELECT COUNT(*) as count FROM kategoriler`, (err, row) => {
+      if (row && row.count === 0) ["Mahkeme Yazıları", "İsimlendirme Yazıları", "Genel Vatandaş Dilekçeleri"].forEach(k => db.run(`INSERT INTO kategoriler (ad) VALUES (?)`, [k]));
+    });
+  });
+}
+
+function createWindows() {
+  splashWindow = new BrowserWindow({ width: 500, height: 350, transparent: true, frame: false, alwaysOnTop: true, icon: path.join(__dirname, 'icon.ico') });
+  splashWindow.loadFile('splash.html');
+  mainWindow = new BrowserWindow({
+    width: 1400, height: 850, frame: false, show: false, backgroundColor: '#0b0812', icon: path.join(__dirname, 'icon.ico'),
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
+  });
+  mainWindow.loadFile('index.html');
+  setTimeout(() => { splashWindow.close(); mainWindow.show(); }, 3500);
+}
+
+app.whenReady().then(() => {
+  const config = getConfig();
+  if (config.arsivYolu && fs.existsSync(config.arsivYolu)) initDB(config.arsivYolu);
+  createWindows();
+});
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 
-const winOf = (e) => BrowserWindow.fromWebContents(e.sender) || mainWindow;
-ipcMain.on('window-minimize', (e) => winOf(e).minimize());
-ipcMain.on('window-maximize', (e) => { const w = winOf(e); w.isMaximized() ? w.unmaximize() : w.maximize(); });
-ipcMain.on('window-close', (e) => winOf(e).close());
+ipcMain.on('window-minimize', () => mainWindow.minimize());
+ipcMain.on('window-maximize', () => mainWindow.isMaximized() ? mainWindow.restore() : mainWindow.maximize());
+ipcMain.on('window-close', () => mainWindow.close());
 
-/* ---------- Yardımcılar ---------- */
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+ipcMain.handle('ayarlari-getir', () => getConfig());
+ipcMain.handle('klasor-sec', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
+  if (result.canceled) return { basarili: false, iptal: true };
+  const secilenYol = result.filePaths[0];
+  if (path.basename(secilenYol) !== 'DYS ARŞİV') return { basarili: false, mesaj: "Lütfen 'DYS ARŞİV' adındaki klasörü seçin!" };
+  setConfig({ arsivYolu: secilenYol });
+  initDB(secilenYol);
+  return { basarili: true, yol: secilenYol };
+});
 
-// Atomik kilit: aynı anda yalnızca bir kişi yazabilir. 15 sn'den eski kilit (çökmüş program) otomatik temizlenir.
-async function acquireLock(archiveRoot) {
-    const lockPath = path.join(archiveRoot, LOCK_FILE);
-    for (let i = 0; i < 100; i++) {
-        try { fs.closeSync(fs.openSync(lockPath, 'wx')); return lockPath; }
-        catch (e) {
-            if (e.code !== 'EEXIST') throw e;
-            try { if (Date.now() - fs.statSync(lockPath).mtimeMs > 15000) fs.unlinkSync(lockPath); } catch {}
-            await sleep(100);
-        }
+ipcMain.handle('kategorileri-getir', () => new Promise(res => db ? db.all(`SELECT ad FROM kategoriler ORDER BY ad ASC`, [], (err, rows) => res(err ? [] : rows.map(r => r.ad))) : res([])));
+ipcMain.handle('kategori-ekle', async (e, ad) => new Promise(res => db.run(`INSERT INTO kategoriler (ad) VALUES (?)`, [ad], err => res({ basarili: !err, mesaj: err?.message }))));
+ipcMain.handle('kategori-sil', async (e, ad) => new Promise(res => db.run(`DELETE FROM kategoriler WHERE ad = ?`, [ad], err => res({ basarili: !err, mesaj: err?.message }))));
+ipcMain.handle('kategori-duzenle', async (e, { eskiAd, yeniAd }) => {
+  try {
+    const evraklar = await new Promise((res, rej) => db.all(`SELECT id, dosya_yolu FROM evraklar WHERE kategori = ?`, [eskiAd], (err, rows) => err ? rej(err) : res(rows)));
+    fs.readdirSync(aktifArsivYolu).forEach(yil => {
+      if (yil.length === 4 && fs.existsSync(path.join(aktifArsivYolu, yil, eskiAd))) fs.renameSync(path.join(aktifArsivYolu, yil, eskiAd), path.join(aktifArsivYolu, yil, yeniAd));
+    });
+    evraklar.forEach(evrak => db.run(`UPDATE evraklar SET kategori = ?, dosya_yolu = ? WHERE id = ?`, [yeniAd, evrak.dosya_yolu.replace(`\\${eskiAd}\\`, `\\${yeniAd}\\`), evrak.id]));
+    db.run(`UPDATE kategoriler SET ad = ? WHERE ad = ?`, [yeniAd, eskiAd]);
+    return { basarili: true };
+  } catch (err) { return { basarili: false, mesaj: err.code === 'EBUSY' ? "PDF açık. Kapatıp deneyin." : err.message }; }
+});
+
+ipcMain.handle('evrak-kaydet', async (e, data) => {
+  try {
+    const yil = data.evrakTarihi.split('-')[0], kategoriKlasoru = path.join(aktifArsivYolu, yil, data.kategori);
+    if (!fs.existsSync(path.join(aktifArsivYolu, yil))) fs.mkdirSync(path.join(aktifArsivYolu, yil));
+    if (!fs.existsSync(kategoriKlasoru)) fs.mkdirSync(kategoriKlasoru);
+    const yeniPdfYolu = path.join(kategoriKlasoru, `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`);
+    fs.writeFileSync(yeniPdfYolu, Buffer.from(data.pdfBuffer));
+    return new Promise((res, rej) => db.run(`INSERT INTO evraklar (evrak_sayisi, evrak_tarihi, evrak_konusu, kategori, kisa_aciklama, dosya_yolu) VALUES (?, ?, ?, ?, ?, ?)`, 
+      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, data.evrakAciklama, yeniPdfYolu], err => err ? rej(err.message) : res({ basarili: true })));
+  } catch (err) { return { basarili: false, mesaj: err.message }; }
+});
+
+ipcMain.handle('evrak-guncelle', async (e, data) => {
+  try {
+    const eski = await new Promise((res, rej) => db.get(`SELECT * FROM evraklar WHERE id = ?`, [data.id], (err, row) => err ? rej(err) : res(row)));
+    let yeniYol = eski.dosya_yolu;
+    if (eski.evrak_tarihi !== data.evrakTarihi || eski.kategori !== data.kategori || eski.evrak_sayisi !== data.evrakSayisi || eski.evrak_konusu !== data.evrakKonusu) {
+      const yil = data.evrakTarihi.split('-')[0], kategoriKlasoru = path.join(aktifArsivYolu, yil, data.kategori);
+      if (!fs.existsSync(path.join(aktifArsivYolu, yil))) fs.mkdirSync(path.join(aktifArsivYolu, yil));
+      if (!fs.existsSync(kategoriKlasoru)) fs.mkdirSync(kategoriKlasoru);
+      yeniYol = path.join(kategoriKlasoru, `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`);
+      if (fs.existsSync(eski.dosya_yolu)) fs.renameSync(eski.dosya_yolu, yeniYol);
     }
-    throw new Error('Veritabanı meşgul, lütfen tekrar deneyin.');
-}
-function releaseLock(lockPath) { try { if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath); } catch {} }
-
-// Önce geçici dosyaya yazıp sonra değiştirir: yarım kalan yazma veritabanını bozmaz
-function writeJson(file, data) {
-    const tmp = file + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
-    fs.renameSync(tmp, file);
-}
-function readDb(archiveRoot) {
-    const dbPath = path.join(archiveRoot, DB_FILE);
-    return fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath, 'utf-8')) : [];
-}
-const safeFolder = (c) => (c ? c.replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ\s]/gi, '').trim() : '') || 'Genel Evrak';
-function makeFileName(year, docNo, title) {
-    const safeTitle = String(title).replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]/gi, '_').slice(0, 80);
-    const safeNo = String(docNo).replace(/[^a-zA-Z0-9]/gi, '-') || 'x';
-    return `${year}-${safeNo}-${safeTitle}-${Date.now()}.pdf`;
-}
-function moveFile(from, to) {
-    try { fs.renameSync(from, to); }
-    catch { fs.copyFileSync(from, to); fs.unlinkSync(from); }
-}
-// Yaklaşık benzersiz sayısal id (iki kullanıcı aynı milisaniyede kayıt yapsa bile çakışmaz)
-// Sürüm karşılaştırma: "2.1.0" > "2.0.9" > 1 (eski sayısal sürümler de desteklenir)
-function cmpVer(a, b) {
-    const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
-    for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; }
-    return 0;
-}
-const newId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000);
-
-/* ---------- Klasör / versiyon ---------- */
-ipcMain.handle('check-folder', (event, folderPath) => {
-    try { return fs.existsSync(folderPath); } catch { return false; }
+    if (data.pdfBuffer) fs.writeFileSync(yeniYol, Buffer.from(data.pdfBuffer));
+    return new Promise((res, rej) => db.run(`UPDATE evraklar SET evrak_sayisi=?, evrak_tarihi=?, evrak_konusu=?, kategori=?, kisa_aciklama=?, dosya_yolu=? WHERE id=?`, 
+      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, data.evrakAciklama, yeniYol, data.id], err => err ? rej(err.message) : res({ basarili: true })));
+  } catch (err) { return { basarili: false, mesaj: err.code === 'EBUSY' ? "Dosya kullanımda!" : err.message }; }
 });
 
-ipcMain.handle('check-version', (event, archiveRoot, appVersion) => {
-    try {
-        const versionPath = path.join(archiveRoot, 'version.json');
-        if (fs.existsSync(versionPath)) {
-            const data = JSON.parse(fs.readFileSync(versionPath, 'utf-8'));
-            if (cmpVer(data.version, appVersion) > 0) return { ok: false, dbVer: data.version };
-        }
-        fs.writeFileSync(versionPath, JSON.stringify({ version: appVersion }));
-        return { ok: true };
-    } catch (e) { return { ok: true }; }
+ipcMain.handle('evrak-sil', async (e, id) => {
+  try {
+    const evrak = await new Promise(res => db.get(`SELECT dosya_yolu FROM evraklar WHERE id = ?`, [id], (err, row) => res(row)));
+    if (fs.existsSync(evrak.dosya_yolu)) fs.unlinkSync(evrak.dosya_yolu);
+    return new Promise(res => db.run(`DELETE FROM evraklar WHERE id = ?`, [id], err => res({ basarili: !err, mesaj: err?.message })));
+  } catch (err) { return { basarili: false, mesaj: err.code === 'EBUSY' ? "Dosya açık, silinemez." : err.message }; }
 });
 
-ipcMain.handle('select-folder', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'], title: 'Ortak Arşiv Klasörünü Seçin' });
-    return result.filePaths[0] || null;
+ipcMain.handle('evrakleri-getir', () => new Promise(res => db ? db.all("SELECT * FROM evraklar ORDER BY evrak_tarihi DESC", [], (err, rows) => res(err ? [] : rows)) : res([])));
+ipcMain.handle('pdf-oku', async (e, yol) => { try { return { basarili: true, veri: fs.readFileSync(yol).toString('base64') }; } catch (err) { return { basarili: false, mesaj: err.message }; } });
+
+ipcMain.handle('pdf-disa-aktar', async (e, kaynakYol, onerilenIsim) => {
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, { defaultPath: onerilenIsim, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  if (!canceled && filePath) { fs.copyFileSync(kaynakYol, filePath); return { basarili: true }; }
+  return { basarili: false };
 });
-
-ipcMain.handle('select-pdf', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, { properties: ['openFile'], title: 'PDF Dosyasını Seçin', filters: [{ name: 'PDF', extensions: ['pdf'] }] });
-    return result.filePaths[0] || null;
-});
-
-/* ---------- Kategoriler ---------- */
-ipcMain.handle('get-categories', async (event, archiveRoot) => {
-    const catPath = path.join(archiveRoot, CAT_FILE);
-    const defaultCats = ["Genel Evrak", "İsimlendirme Kararları", "Encümen Kararları", "Gelen Evrak", "Giden Evrak"];
-    try {
-        if (!fs.existsSync(catPath)) { writeJson(catPath, defaultCats); return defaultCats; }
-        return JSON.parse(fs.readFileSync(catPath, 'utf-8'));
-    } catch { return defaultCats; }
-});
-
-ipcMain.handle('save-categories', async (event, archiveRoot, categories) => {
-    let lockPath;
-    try {
-        lockPath = await acquireLock(archiveRoot);
-        writeJson(path.join(archiveRoot, CAT_FILE), categories);
-        return { success: true };
-    } catch (e) { return { success: false, error: e.message }; }
-    finally { if (lockPath) releaseLock(lockPath); }
-});
-
-/* ---------- Evraklar ---------- */
-ipcMain.handle('load-db', async (event, archivePath) => {
-    try { return readDb(archivePath); } catch { return []; }
-});
-
-ipcMain.handle('save-doc', async (event, data) => {
-    let lockPath, destPath;
-    try {
-        const { sourcePdf, archiveRoot, year, category, docDate, docNo, title, note } = data;
-        lockPath = await acquireLock(archiveRoot);
-        const db = readDb(archiveRoot);
-
-        const destFolder = path.join(archiveRoot, String(year), safeFolder(category));
-        fs.mkdirSync(destFolder, { recursive: true });
-        const fileName = makeFileName(year, docNo, title);
-        destPath = path.join(destFolder, fileName);
-        fs.copyFileSync(sourcePdf, destPath);
-
-        const doc = { id: newId(), year: String(year), category: category || 'Genel Evrak', docDate, docNo, title, note, fileName, filePath: destPath, dateAdded: new Date().toISOString() };
-        db.unshift(doc);
-        writeJson(path.join(archiveRoot, DB_FILE), db);
-        return { success: true, doc };
-    } catch (error) {
-        // Kayıt başarısızsa yetim PDF bırakma
-        try { if (destPath && fs.existsSync(destPath)) fs.unlinkSync(destPath); } catch {}
-        return { success: false, error: error.message };
-    } finally { if (lockPath) releaseLock(lockPath); }
-});
-
-ipcMain.handle('update-doc', async (event, data) => {
-    let lockPath;
-    try {
-        const { id, sourcePdf, archiveRoot, year, category, docDate, docNo, title, note, oldFilePath } = data;
-        lockPath = await acquireLock(archiveRoot);
-        const db = readDb(archiveRoot);
-        const index = db.findIndex((d) => d.id === id);
-        if (index === -1) throw new Error('Kayıt bulunamadı (başka biri silmiş olabilir).');
-        const old = db[index];
-
-        let finalFilePath = oldFilePath || old.filePath;
-        let finalFileName = path.basename(finalFilePath);
-        const destFolder = path.join(archiveRoot, String(year), safeFolder(category));
-
-        if (sourcePdf) {
-            fs.mkdirSync(destFolder, { recursive: true });
-            finalFileName = makeFileName(year, docNo, title);
-            finalFilePath = path.join(destFolder, finalFileName);
-            fs.copyFileSync(sourcePdf, finalFilePath);
-            if (fs.existsSync(old.filePath)) fs.unlinkSync(old.filePath);
-        } else if (String(year) !== String(old.year) || safeFolder(category) !== safeFolder(old.category)) {
-            fs.mkdirSync(destFolder, { recursive: true });
-            const target = path.join(destFolder, finalFileName);
-            if (fs.existsSync(finalFilePath)) moveFile(finalFilePath, target);
-            finalFilePath = target;
-        }
-
-        db[index] = { ...old, year: String(year), category: category || 'Genel Evrak', docDate, docNo, title, note, fileName: finalFileName, filePath: finalFilePath };
-        writeJson(path.join(archiveRoot, DB_FILE), db);
-        return { success: true };
-    } catch (error) { return { success: false, error: error.message }; }
-    finally { if (lockPath) releaseLock(lockPath); }
-});
-
-ipcMain.handle('delete-doc', async (event, data) => {
-    let lockPath;
-    try {
-        const { id, filePath, archiveRoot } = data;
-        lockPath = await acquireLock(archiveRoot);
-        // Önce kaydı sil, sonra dosyayı: yarım kalırsa kayıtsız PDF kalır, PDF'siz kayıt kalmaz
-        const db = readDb(archiveRoot).filter((d) => d.id !== id);
-        writeJson(path.join(archiveRoot, DB_FILE), db);
-        try { if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
-        try { fs.unlinkSync(path.join(archiveRoot, TEXT_DIR, id + '.json')); } catch {}
-        return { success: true };
-    } catch (error) { return { success: false, error: error.message }; }
-    finally { if (lockPath) releaseLock(lockPath); }
-});
-
-/* ---------- OCR / metin dosyaları (arşivde dys_text/<id>.json) ---------- */
-const norm = (t) => String(t || '').replace(/İ/g, 'i').replace(/I/g, 'i').toLowerCase()
-    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
-
-ipcMain.handle('read-pdf', async (e, p) => { try { return fs.readFileSync(p); } catch { return null; } });
-
-ipcMain.handle('get-text', async (e, root, id) => {
-    try { return JSON.parse(fs.readFileSync(path.join(root, TEXT_DIR, id + '.json'), 'utf-8')); } catch { return null; }
-});
-ipcMain.handle('save-text', async (e, root, id, obj) => {
-    try {
-        fs.mkdirSync(path.join(root, TEXT_DIR), { recursive: true });
-        writeJson(path.join(root, TEXT_DIR, id + '.json'), obj);
-        return { success: true };
-    } catch (err) { return { success: false, error: err.message }; }
-});
-ipcMain.handle('text-ids', async (e, root) => {
-    try { return fs.readdirSync(path.join(root, TEXT_DIR)).filter((f) => f.endsWith('.json')).map((f) => Number(f.slice(0, -5))); } catch { return []; }
-});
-// PDF içi arama: sorgudaki tüm kelimeler aynı sayfada geçmeli. Sonuç: { id: [sayfa numaraları] }
-ipcMain.handle('search-text', async (e, root, query) => {
-    const words = norm(query).split(/\s+/).filter(Boolean), out = {};
-    if (!words.length) return out;
-    let files = [];
-    try { files = fs.readdirSync(path.join(root, TEXT_DIR)).filter((f) => f.endsWith('.json')); } catch { return out; }
-    for (const f of files) {
-        try {
-            const t = JSON.parse(fs.readFileSync(path.join(root, TEXT_DIR, f), 'utf-8'));
-            const hits = [];
-            (t.pages || []).forEach((pg, i) => { const n = norm(pg); if (words.every((w) => n.includes(w))) hits.push(i + 1); });
-            if (hits.length) out[f.slice(0, -5)] = hits;
-        } catch {}
-    }
-    return out;
-});
+ipcMain.on('pdf-yazdir-harici', (e, yol) => shell.openPath(yol));

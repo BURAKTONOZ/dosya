@@ -3,11 +3,11 @@ name: NDYS Portable EXE Derleyici
 on:
   push:
     branches: [ "main", "master" ]
-  workflow_dispatch: # İstediğin zaman manuel tetikleyebilmen için
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest # Derleme işlemi sanal bir Windows bilgisayarda yapılır
+    runs-on: windows-2022 # En stabil derleme ortamı
 
     steps:
     - name: Kodları Çek
@@ -16,7 +16,7 @@ jobs:
     - name: Node.js Kurulumu
       uses: actions/setup-node@v4
       with:
-        node-version: 18 # Kararlı bir Node sürümü
+        node-version: 20 # Uyumluluk için Node 20 zorunlu
 
     - name: Gerekli Paketleri Yükle
       run: npm install

@@ -1,32 +1,31 @@
-name: Build DYS Portable
+name: NDYS Portable EXE Derleyici
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # İstediğin zaman manuel tetikleyebilmen için
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-latest # Derleme işlemi sanal bir Windows bilgisayarda yapılır
 
     steps:
-      - name: Kodu İndir
-        uses: actions/checkout@v4
+    - name: Kodları Çek
+      uses: actions/checkout@v4
 
-      - name: Node.js Kur
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+    - name: Node.js Kurulumu
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18 # Kararlı bir Node sürümü
 
-      - name: Bağımlılıkları Yükle
-        run: npm install
+    - name: Gerekli Paketleri Yükle
+      run: npm install
 
-      - name: Programı Paketle (Build)
-        run: npm run build
+    - name: Portable EXE'yi Derle
+      run: npm run build
 
-      - name: Exe Dosyasını Sisteme Yükle
-        uses: actions/upload-artifact@v4
-        with:
-          name: DYS-Portable
-          path: dist/DYS.exe
+    - name: EXE Dosyasını İndirmeye Sun
+      uses: actions/upload-artifact@v4
+      with:
+        name: NDYS-Programi
+        path: dist/*.exe

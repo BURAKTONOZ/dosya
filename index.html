@@ -1,392 +1,92 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<title>DYS Numarataj</title>
-<script src="node_modules/pdfjs-dist/build/pdf.js"></script>
-<script src="node_modules/tesseract.js/dist/tesseract.min.js"></script>
-<style>
-:root{--navy:#1f3a5f;--navy2:#2d5288;--bg:#eceff3;--card:#fff;--line:#cfd6df;--ink:#1c2530;--mut:#66727f;--red:#a4262c;--ok:#237a3b}
-*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Calibri,sans-serif}
-body{height:100vh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:var(--ink);font-size:14px}
-button,select{font-family:inherit;cursor:pointer}
-:focus-visible{outline:2px solid var(--navy2);outline-offset:1px}
-.hidden{display:none!important}
-mark{background:#ffe27a;color:#000;padding:0 1px}
-.splash{position:fixed;inset:0;z-index:10000;background:var(--navy);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s}
-.splash h1{font-size:30px;font-weight:600;letter-spacing:.5px}.splash p{margin:8px 0 18px;color:#b8c7dc;font-size:13px}
-.bar{width:300px;height:4px;background:rgba(255,255,255,.2)}.bar i{display:block;height:100%;width:0;background:#fff;transition:width .5s}
-.copy{position:absolute;bottom:16px;font-size:11px;color:#8ea3c0}
-#toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:9999}
-.toast{background:#fff;border:1px solid var(--line);border-left:4px solid var(--navy);padding:10px 16px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.15);opacity:0;transform:translateY(8px);transition:.25s}
-.toast.show{opacity:1;transform:none}.toast.error{border-left-color:var(--red)}.toast.info{border-left-color:#b7791f}
-.title{height:36px;background:var(--navy);color:#fff;display:flex;justify-content:space-between;align-items:center;-webkit-app-region:drag;flex-shrink:0}
-.title .t{padding-left:14px;font-size:12.5px;display:flex;gap:10px}.title .t b{font-weight:600}.title .t span{color:#a9bbd6}
-.ctl{display:flex;height:100%;-webkit-app-region:no-drag}
-.win{width:46px;height:36px;border:0;background:none;color:#fff;font:10px 'Segoe MDL2 Assets','Segoe UI Symbol',sans-serif}
-.win:hover{background:rgba(255,255,255,.15)}.win.x:hover{background:#e81123}
-.app{flex:1;display:flex;min-height:0}
-.dock{width:150px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:14px 10px;gap:10px}
-.add{background:var(--navy);color:#fff;border:0;padding:11px;font-size:14px;font-weight:600;border-radius:3px}.add:hover{background:var(--navy2)}
-.yl{font-size:12px;color:var(--mut);margin-top:6px;padding-left:4px}
-.years{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
-.y{display:flex;justify-content:space-between;border:0;background:none;padding:9px 10px;text-align:left;font-size:13.5px;border-left:3px solid transparent;color:var(--ink)}
-.y span{color:var(--mut);font-size:12px}.y:hover{background:var(--bg)}.y.on{background:#e3eaf4;border-left-color:var(--navy);font-weight:600}
-.set{border:1px solid var(--line);background:#fff;padding:9px;border-radius:3px;font-size:13px}.set:hover{background:var(--bg)}
-.main{flex:1;display:flex;flex-direction:column;min-width:0}
-.app.open .main{flex:0 0 430px;border-right:1px solid var(--line)}
-.sr{display:flex;gap:8px;padding:16px 22px 8px;flex-wrap:wrap}
-.search{flex:1;min-width:200px;display:flex;background:#fff;border:1px solid var(--line);border-radius:3px}
-.search:focus-within{border-color:var(--navy2);box-shadow:0 0 0 2px rgba(45,82,136,.18)}
-.search input{flex:1;border:0;outline:0;background:none;padding:10px 12px;font-size:14px}
-.sel{border:1px solid var(--line);background:#fff;padding:0 10px;height:40px;border-radius:3px;font-size:13px;color:var(--ink)}
-.app.open .sel.opt{display:none}
-.found{padding:2px 24px 8px;font-size:12.5px;color:var(--mut)}
-.list{flex:1;overflow-y:auto;padding:0 22px 22px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
-.app.open .grid{display:flex;flex-direction:column}
-.doc{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--navy);padding:14px 16px;cursor:pointer;transition:box-shadow .2s,border-color .2s}
-.doc:hover{box-shadow:0 4px 14px rgba(31,58,95,.16)}.doc.active{border-color:var(--navy2);box-shadow:0 0 0 2px var(--navy2)}
-.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
-.no{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut)}
-.no b{background:var(--navy);color:#fff;padding:3px 10px;font-size:14px;font-weight:600;letter-spacing:.3px;border-radius:2px}
-.dt{text-align:right;border-right:3px solid var(--navy);padding-right:9px;line-height:1.3}
-.dt b{display:block;font-size:14px;font-weight:600}.dt span{font-size:11.5px;color:var(--mut)}
-.subj{font-size:15.5px;font-weight:600;line-height:1.4;margin-bottom:6px}
-.cat{font-size:12px;color:var(--navy2);font-weight:600;margin-bottom:6px}
-.note{font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hit{margin-top:8px;font-size:12px;color:var(--ok);font-weight:600;border-top:1px dashed var(--line);padding-top:6px}
-.empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--mut)}.empty b{display:block;font-size:17px;color:var(--ink);margin-bottom:4px}
-.viewer{width:0;opacity:0;display:flex;flex-direction:column;background:#fff;transition:opacity .3s;overflow:hidden}
-.app.open .viewer{flex:1;width:auto;opacity:1}
-.vh{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line)}
-.vh h3{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.vb{display:flex;gap:6px;flex-shrink:0}
-.b{border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 14px;font-size:13px;border-radius:3px}.b:hover{background:var(--bg)}
-.b.p{background:var(--navy);border-color:var(--navy);color:#fff}.b.p:hover{background:var(--navy2)}
-.b.d{color:var(--red);border-color:#e3b9bb}.b.d:hover{background:#fbeeee}
-iframe{border:0;background:#fff;flex:1;width:100%}
-.ov{position:fixed;top:36px;left:0;right:0;bottom:0;z-index:1000;background:rgba(20,30,45,.5);display:flex;align-items:center;justify-content:center;transition:opacity .2s}
-.ov.hidden{display:flex!important;opacity:0;pointer-events:none}
-.box{background:#fff;width:440px;border-top:4px solid var(--navy);box-shadow:0 20px 50px rgba(0,0,0,.35);padding:26px}
-.box h2{font-size:18px;font-weight:600;margin-bottom:10px}.msg{color:var(--mut);line-height:1.6;margin-bottom:20px;font-size:13.5px}
-.acts{display:flex;justify-content:flex-end;gap:8px}
-.fm{display:flex;width:92vw;height:88vh;max-width:1600px;background:#fff;border-top:4px solid var(--navy);box-shadow:0 20px 50px rgba(0,0,0,.35)}
-.side{width:400px;padding:24px;display:flex;flex-direction:column;overflow-y:auto;border-right:1px solid var(--line);background:#f7f9fb}
-.fh{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.fh h2{font-size:18px;font-weight:600}
-.x{border:0;background:none;font-size:24px;color:var(--mut);width:32px;height:32px}.x:hover{color:var(--red)}
-.fc{display:flex;flex-direction:column;gap:14px;margin-bottom:auto}
-.row{display:flex;gap:10px}.g{display:flex;flex-direction:column;gap:5px;flex:1}.g label{font-size:12.5px;font-weight:600;color:var(--mut)}
-.fi{width:100%;padding:10px 12px;border:1px solid var(--line);background:#fff;font-size:14px;outline:0;border-radius:3px;color:var(--ink)}
-.fi:focus{border-color:var(--navy2);box-shadow:0 0 0 2px rgba(45,82,136,.18)}
-textarea.fi{height:110px;resize:none}
-.fa{display:flex;justify-content:flex-end;gap:8px;padding-top:16px;margin-top:16px;border-top:1px solid var(--line)}
-.pside{flex:1;display:flex;align-items:center;justify-content:center;background:#e4e8ee}.pside iframe{height:100%}
-.drop{width:75%;max-width:520px;height:260px;border:2px dashed var(--navy2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:#fff;transition:.2s}
-.drop:hover,.drop.over{background:#eaf0f9}.drop b{font-size:18px;color:var(--navy);margin-bottom:4px}.drop span{color:var(--mut);font-size:13px}
-.cb{max-height:150px;overflow-y:auto;margin-top:8px;border:1px solid var(--line)}
-.ci{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;font-size:13.5px;border-bottom:1px solid var(--bg)}.ci button{border:0;background:none;color:var(--red);font-size:13px}
-.txm{width:820px;max-width:92vw;height:80vh;display:flex;flex-direction:column}
-.txm textarea{flex:1;width:100%;resize:none;font:13px/1.55 Consolas,'Courier New',monospace;padding:12px;border:1px solid var(--line);outline:0}
-#ocr{position:fixed;left:160px;bottom:14px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--navy2);padding:8px 14px;font-size:12.5px;z-index:900;box-shadow:0 4px 12px rgba(0,0,0,.15)}
-</style>
+  <meta charset="UTF-8">
+  <title>NDYS</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="splash" class="splash"><h1>DYS Numarataj</h1><p id="sText">Sistem başlatılıyor…</p><div class="bar"><i id="sBar"></i></div><div class="copy">Copyright © 2026 TONOZ · v2.1.0</div></div>
-<div id="toasts"></div><div id="ocr" class="hidden"></div>
+  <div class="bg-glow"></div>
+  
+  <div id="context-menu" class="context-menu">
+    <div class="context-item" id="ctx-duzenle">✏️ Düzenle</div>
+    <div class="context-item" id="ctx-disa-aktar">💾 Farklı Kaydet (Dışa Aktar)</div>
+    <div class="context-item" id="ctx-yazdir">🖨️ Yazdır</div>
+    <div class="context-separator"></div>
+    <div class="context-item ctx-danger" id="ctx-sil">🗑️ Sil</div>
+  </div>
 
-<div class="ov hidden" id="dlg"><div class="box"><h2 id="dT"></h2><div class="msg" id="dM"></div><div class="acts"><button class="b" id="dNo">İptal</button><button class="b p" id="dOk">Tamam</button></div></div></div>
+  <div id="app-container">
+    <header id="topbar">
+      <div class="top-left">
+        <img src="icon.ico" class="top-logo" alt="NDYS" onerror="this.style.display='none'">
+        <div class="top-titles"><div class="title-main">Numarataj Dosya Yönetim Sistemi</div><div class="title-sub">Numarataj Şube Müdürlüğü</div></div>
+      </div>
+      <div class="window-controls">
+        <button class="win-btn" onclick="window.api.minimize()">—</button>
+        <button class="win-btn" onclick="window.api.maximize()">🗖</button>
+        <button class="win-btn win-close" onclick="window.api.close()">✕</button>
+      </div>
+    </header>
 
-<div class="title"><div class="t"><b>Numarataj Şube Müdürlüğü</b><span>Dosya Yönetim Sistemi · v2.1.0</span></div>
-<div class="ctl"><button class="win" onclick="window.electronAPI.minimizeApp()">&#xE921;</button><button class="win" onclick="window.electronAPI.maximizeApp()">&#xE922;</button><button class="win x" onclick="window.electronAPI.closeApp()">&#xE8BB;</button></div></div>
+    <div id="main-workspace">
+      <!-- Akıllı Daralan Sol Menü (Mini Mod Wrapper'ı) -->
+      <div id="sidebar-wrapper">
+        <nav id="sidebar">
+          <div id="tree-menu" class="tree-menu"></div>
+          <button class="settings-btn" onclick="ayarlarModalAc()" title="Ayarlar (Ctrl+S)">⚙️</button>
+          <button class="add-btn" onclick="modalAc('yeni')" title="Yeni Evrak (Ctrl+N)"><span class="plus-icon">+</span></button>
+        </nav>
+      </div>
 
-<div class="ov hidden" id="setup"><div class="box"><h2>Ağ bağlantısı gerekli</h2><div class="msg"><b>DYS ARŞİV</b> adlı ortak klasörü seçin.</div><div class="acts"><button class="b p" onclick="selectArchiveFolder()">Klasörü seç ve bağlan</button></div></div></div>
-<div class="ov hidden" id="verErr" style="z-index:10001"><div class="box" style="border-top-color:var(--red)"><h2 style="color:var(--red)">Erişim engellendi</h2><div class="msg">Arşiv daha yeni bir sürümle çalışıyor. Veri güvenliği için girişiniz engellendi.<br><br><b>Eski sürümü silip güncel sürümü yükleyin.</b></div><div class="acts"><button class="b p" onclick="window.electronAPI.closeApp()">Uygulamayı kapat</button></div></div></div>
+      <main id="content-area">
+        <div class="content-header">
+          <div class="search-container"><input type="text" id="arama-kutusu" placeholder="Arşivde evrak ara (Ctrl+F)..."></div>
+        </div>
+        <div id="cards-container"></div>
+      </main>
 
-<div class="ov hidden" id="settings"><div class="box" style="width:520px">
-<div class="fh"><h2>Sistem ayarları</h2><button class="x" onclick="hide('settings')">&times;</button></div>
-<div class="g"><label>Ağ klasörü</label><div style="display:flex;gap:8px"><input id="curPath" class="fi" readonly><button class="b" onclick="selectArchiveFolder()">Değiştir</button></div></div>
-<div class="g" style="margin-top:18px"><label>Evrak kategorileri</label><div style="display:flex;gap:8px"><input id="newCat" class="fi" placeholder="Yeni kategori" onkeydown="if(event.key==='Enter')addNewCategory()"><button class="b p" onclick="addNewCategory()">Ekle</button></div><div class="cb" id="catBox"></div></div>
-<div class="g" style="margin-top:18px"><label>PDF metin taraması</label><div style="display:flex;gap:8px;align-items:center"><button class="b" onclick="scanAll()">Okunmamış tüm evrakları tara</button><span id="scanInfo" style="font-size:12.5px;color:var(--mut)"></span></div></div>
-</div></div>
+      <aside id="pdf-panel">
+        <div class="pdf-header"><span class="pdf-title" id="pdf-view-title">Belge Okuyucu</span><button class="pdf-close-btn" onclick="panelKapat()">✕ Kapat</button></div>
+        <iframe id="pdf-frame-view" src=""></iframe>
+      </aside>
+    </div>
+  </div>
 
-<div class="ov hidden" id="upload"><div class="fm">
-<div class="side"><div class="fh"><h2 id="mTitle">Yeni evrak girişi</h2><button class="x" onclick="closeModal()">&times;</button></div>
-<div class="fc"><div class="row"><div class="g"><label>Evrak tarihi</label><input type="date" id="fDate" class="fi"></div><div class="g"><label>Evrak no</label><input id="fNo" class="fi" placeholder="2026/145"></div></div>
-<div class="g"><label>Kategori</label><select id="fCat" class="fi"></select></div>
-<div class="g"><label>Konu özeti</label><input id="fTitle" class="fi"></div>
-<div class="g"><label>Notlar</label><textarea id="fNote" class="fi"></textarea></div></div>
-<div class="fa"><button class="b" onclick="closeModal()">İptal</button><button class="b p" id="saveBtn" onclick="saveDocument()">Kaydet</button></div></div>
-<div class="pside" id="pside"><div class="drop" id="drop" onclick="pickPdf()"><b>PDF seçmek için tıklayın</b><span>veya dosyayı bu alana bırakın</span></div><iframe id="mFrame" class="hidden"></iframe></div>
-</div></div>
+  <div id="modal-overlay" class="overlay">
+    <div class="modal-box">
+      <div class="modal-form">
+        <h2 id="modal-baslik">Yeni Evrak</h2>
+        <input type="hidden" id="evrak-id">
+        <div class="form-group"><label>Kategori</label><select id="evrak-kategori"></select></div>
+        <div class="form-group"><label>Evrak Sayısı</label><input type="text" id="evrak-sayisi"></div>
+        <div class="form-group"><label>Evrak Tarihi</label><input type="date" id="evrak-tarihi"></div>
+        <div class="form-group"><label>Evrak Konusu</label><input type="text" id="evrak-konusu"></div>
+        <div class="form-group"><label>Kısa Açıklama</label><textarea id="evrak-aciklama" rows="3"></textarea></div>
+        <button class="submit-btn" id="kaydet-btn">Arşive Kaydet</button>
+      </div>
+      <div class="modal-pdf">
+        <div class="pdf-upload-header">
+          <span style="color:white; font-weight:bold; font-size:14px;" id="pdf-upload-title">PDF Yükle</span>
+          <label class="custom-file-btn" id="btn-pdf-degistir" style="display:none;">PDF Seç / Değiştir<input type="file" id="pdf-file-edit" accept="application/pdf"></label>
+          <button class="modal-close" onclick="modalKapat()">✕</button>
+        </div>
+        <div id="drag-zone" class="drag-zone">
+          <div style="pointer-events: none;">
+            <div style="font-size: 40px; margin-bottom: 10px;">📄</div>
+            <div id="drag-text">PDF dosyasını buraya sürükleyin veya tıklayıp seçin</div>
+          </div>
+          <input type="file" id="pdf-file" accept="application/pdf" style="display:none;">
+        </div>
+        <iframe id="modal-pdf-preview" src=""></iframe>
+      </div>
+    </div>
+  </div>
 
-<div class="ov hidden" id="txEd"><div class="box txm">
-<div class="fh"><h2>PDF metni</h2><button class="x" onclick="hide('txEd')">&times;</button></div>
-<div class="msg" style="margin-bottom:10px" id="txInfo">Bu metin yalnızca “PDF içinde ara” için kullanılır. Hatalı okunan yerleri düzeltebilirsiniz.</div>
-<textarea id="txArea" spellcheck="false"></textarea>
-<div class="fa"><button class="b d" onclick="reOcr()">Yeniden oku</button><button class="b" onclick="hide('txEd')">İptal</button><button class="b p" onclick="saveTextEdit()">Kaydet</button></div>
-</div></div>
+  <div id="setup-overlay" class="overlay"><div class="setup-box" style="width: 550px;"><h2 id="setup-title">Sistem Ayarları</h2><div class="current-path" id="guncel-yol">Şu anki yol: Seçilmedi</div><button class="submit-btn" style="margin-bottom: 20px;" onclick="klasorSecmeIslemi()">Arşiv Klasörünü Değiştir</button><div class="settings-section"><h3>Kategori Yönetimi</h3><div style="display:flex; gap:10px; margin-bottom: 15px;"><input type="text" id="yeni-kategori-input" placeholder="Yeni kategori..." style="flex:1;"><button class="submit-btn" style="padding: 10px 15px;" onclick="kategoriEkle()">Ekle</button></div><div id="kategori-listesi"></div></div><div class="setup-buttons" style="margin-top: 20px;"><button class="modal-close-btn" id="setup-kapat-btn" onclick="ayarlarModalKapat()" style="display:none;">Kapat</button></div></div></div>
+  <div id="custom-alert" class="overlay"><div class="setup-box" style="width: 350px;"><h2>Uyarı</h2><p id="alert-message" style="margin-bottom: 25px;"></p><button class="submit-btn" onclick="document.getElementById('custom-alert').classList.remove('show')">Tamam</button></div></div>
+  <div id="custom-confirm" class="overlay"><div class="setup-box" style="width: 350px;"><h2>Emin misiniz?</h2><p id="confirm-message" style="margin-bottom: 25px;"></p><div class="setup-buttons"><button class="submit-btn" id="confirm-yes">Evet</button><button class="modal-close-btn" onclick="document.getElementById('custom-confirm').classList.remove('show')">İptal</button></div></div></div>
 
-<div class="app" id="app">
-<div class="dock"><button class="add" onclick="openModal()">+ Yeni evrak</button><div class="yl">Yıllar</div><div class="years" id="years"></div><button class="set" onclick="openSettings()">Ayarlar</button></div>
-<div class="main">
-<div class="sr">
-<div class="search"><input id="q" placeholder="Ara…  (Ctrl+K)" oninput="filterDocs()"></div>
-<select class="sel" id="mode" onchange="filterDocs()" title="Arama türü"><option value="info">Kayıt bilgilerinde ara</option><option value="pdf">PDF içinde ara</option></select>
-<select class="sel opt" id="fcat" onchange="filterDocs()"></select>
-<select class="sel opt" id="sort" onchange="filterDocs()"><option value="date">Tarihe göre</option><option value="no">Evrak no'ya göre</option><option value="cat">Kategoriye göre</option></select>
-<button class="sel" onclick="loadDocuments()" title="Yenile">Yenile</button>
-</div>
-<div class="found" id="found"></div>
-<div class="list"><div class="grid" id="grid"></div></div>
-</div>
-<div class="viewer"><div class="vh"><h3 id="vTitle"></h3><div class="vb"><button class="b" onclick="openTextEditor()">Metni düzenle</button><button class="b" onclick="editCurrentDoc()">Düzenle</button><button class="b d" onclick="deleteCurrentDoc()">Sil</button><button class="b" onclick="closePdfViewer()">Kapat</button></div></div><iframe id="pdfFrame"></iframe></div>
-</div>
-
-<script>
-const APP_VERSION = '2.1.0';
-let archivePath = localStorage.getItem('dys_archive_path');
-let documents = [], categories = [], currentPdfPath = null, activeYear = 'Tümü', isEditMode = false, editDocData = null;
-let textIds = new Set(), hits = {}, fToken = 0, txDoc = null;
-const $ = id => document.getElementById(id), hide = id => $(id).classList.add('hidden'), show = id => $(id).classList.remove('hidden');
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const norm = t => String(t || '').replace(/İ/g,'i').replace(/I/g,'i').toLowerCase().replace(/ı/g,'i').replace(/ş/g,'s').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o').replace(/ç/g,'c');
-
-function dialog(msg, title, confirm, danger){
-  return new Promise(res => {
-    $('dT').innerText = title; $('dM').innerHTML = msg; $('dNo').style.display = confirm ? '' : 'none';
-    const ok = $('dOk'); ok.innerText = confirm ? 'Onaylıyorum' : 'Tamam'; ok.className = 'b ' + (danger ? 'd' : 'p'); show('dlg');
-    ok.onclick = () => { hide('dlg'); res(true); }; $('dNo').onclick = () => { hide('dlg'); res(false); };
-  });
-}
-const customAlert = (m, t = 'Bilgi') => dialog(m, t, false), customConfirm = (m, t = 'Onay gerekli', d) => dialog(m, t, true, d);
-function showNotification(type, message){
-  const t = document.createElement('div'); t.className = 'toast ' + type; t.innerText = message; $('toasts').appendChild(t);
-  setTimeout(() => t.classList.add('show'), 10); setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3200);
-}
-
-window.onload = async () => {
-  const fade = () => { $('splash').style.opacity = 0; setTimeout(() => $('splash').style.display = 'none', 600); };
-  const step = async (t, p) => { $('sText').innerText = t; $('sBar').style.width = p + '%'; await new Promise(r => setTimeout(r, 600)); };
-  if (!archivePath){ fade(); show('setup'); return; }
-  await step('Arşive bağlanılıyor…', 25);
-  if (!await window.electronAPI.checkFolder(archivePath) || !archivePath.toUpperCase().endsWith('DYS ARŞİV')){ fade(); show('setup'); showNotification('error', 'Bağlantı koptu veya klasör adı yanlış!'); return; }
-  await step('Sürüm kontrol ediliyor… (v' + APP_VERSION + ')', 50);
-  if (!(await window.electronAPI.checkVersion(archivePath, APP_VERSION)).ok){ $('splash').style.display = 'none'; show('verErr'); return; }
-  await step('Kayıtlar yükleniyor…', 80);
-  await loadCategories(); documents = await window.electronAPI.loadDb(archivePath); textIds = new Set(await window.electronAPI.textIds(archivePath));
-  await step('Hazır', 100); refresh(); fade();
-};
-
-/* kategoriler */
-async function loadCategories(){ categories = await window.electronAPI.getCategories(archivePath); renderCats(); }
-function renderCats(){
-  $('catBox').innerHTML = categories.map((c, i) => `<div class="ci"><span>${esc(c)}</span><button onclick="deleteCategory(${i})">Sil</button></div>`).join('');
-  $('fCat').innerHTML = categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  const all = [...new Set([...categories, ...documents.map(d => d.category).filter(Boolean)])], cur = $('fcat').value;
-  $('fcat').innerHTML = '<option value="">Tüm kategoriler</option>' + all.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join(''); $('fcat').value = cur;
-}
-async function addNewCategory(){
-  const v = $('newCat').value.trim();
-  if (v && !categories.includes(v)){ categories.push(v); $('newCat').value = ''; await window.electronAPI.saveCategories(archivePath, categories); renderCats(); showNotification('success', 'Kategori eklendi.'); }
-  else if (v) await customAlert('Bu kategori zaten mevcut.', 'Uyarı');
-}
-async function deleteCategory(i){
-  if (await customConfirm('Kategori silinsin mi?<br>(Geçmiş dosyalar klasörde durmaya devam eder)', 'Kategori sil', true)){ categories.splice(i, 1); await window.electronAPI.saveCategories(archivePath, categories); renderCats(); }
-}
-function openSettings(){ $('curPath').value = archivePath || ''; const n = documents.filter(d => !textIds.has(d.id)).length; $('scanInfo').innerText = n + ' evrak okunmamış'; show('settings'); }
-async function selectArchiveFolder(){
-  const p = await window.electronAPI.selectFolder(); if (!p) return;
-  if (!p.toUpperCase().endsWith('DYS ARŞİV')){ await customAlert('Klasörün adı <b>DYS ARŞİV</b> olmalıdır.', 'Geçersiz klasör'); return; }
-  archivePath = p; localStorage.setItem('dys_archive_path', p); hide('setup'); hide('settings');
-  showNotification('success', 'Arşiv bağlandı. Program yeniden başlatılacak.'); setTimeout(() => window.electronAPI.closeApp(), 2500);
-}
-
-/* veri / liste */
-async function loadDocuments(){
-  documents = await window.electronAPI.loadDb(archivePath); textIds = new Set(await window.electronAPI.textIds(archivePath)); refresh();
-  if (editDocData && $('app').classList.contains('open')){
-    const u = documents.find(d => d.id === editDocData.id);
-    if (u){ editDocData = u; $('vTitle').innerText = `${u.docNo} — ${u.title}`; } else closePdfViewer();
-  }
-}
-function refresh(){ renderYears(); renderCats(); filterDocs(); }
-function renderYears(){
-  const cnt = {}; documents.forEach(d => cnt[d.year] = (cnt[d.year] || 0) + 1);
-  const b = (y, l, n) => `<button class="y ${activeYear === y ? 'on' : ''}" data-y="${esc(y)}" onclick="setYear(this.dataset.y)">${l}<span>${n}</span></button>`;
-  $('years').innerHTML = b('Tümü', 'Tümü', documents.length) + Object.keys(cnt).sort().reverse().map(y => b(y, esc(y), cnt[y])).join('');
-}
-function setYear(y){ activeYear = y; renderYears(); filterDocs(); closePdfViewer(); }
-let deb; $('q') && $('q').addEventListener('input', () => {});
-async function filterDocs(){
-  const tk = ++fToken, raw = $('q').value.trim(), q = norm(raw), pdfMode = $('mode').value === 'pdf';
-  let f = documents.slice();
-  if (activeYear !== 'Tümü') f = f.filter(d => d.year === activeYear);
-  if ($('fcat').value) f = f.filter(d => (d.category || 'Genel Evrak') === $('fcat').value);
-  hits = {};
-  if (q && pdfMode){
-    await new Promise(r => { clearTimeout(deb); deb = setTimeout(r, 250); }); if (tk !== fToken) return;
-    hits = await window.electronAPI.searchText(archivePath, raw); if (tk !== fToken) return;
-    f = f.filter(d => hits[String(d.id)]);
-  } else if (q) f = f.filter(d => [d.title, d.note, d.docNo, d.category, d.docDate].some(x => x && norm(x).includes(q)));
-  const s = $('sort').value;
-  if (s === 'no') f.sort((a, b) => String(b.docNo).localeCompare(String(a.docNo), 'tr', {numeric: true}));
-  else if (s === 'cat') f.sort((a, b) => String(a.category).localeCompare(String(b.category), 'tr'));
-  else f.sort((a, b) => new Date(b.docDate || b.dateAdded) - new Date(a.docDate || a.dateAdded));
-  $('found').innerText = `${f.length} evrak listeleniyor` + (q && pdfMode ? ' (PDF içi arama)' : '');
-  renderList(f, pdfMode ? '' : raw);
-}
-function hl(t, q){
-  const s = esc(t); if (!q) return s;
-  return s.replace(new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => `<mark>${m}</mark>`);
-}
-function renderList(docs, q){
-  const g = $('grid');
-  if (!docs.length){ g.innerHTML = `<div class="empty"><b>${documents.length ? 'Sonuç bulunamadı' : 'Arşiv boş'}</b>${documents.length ? 'Arama ölçütlerini değiştirin.' : '“Yeni evrak” ile ilk kaydı ekleyin.'}</div>`; return; }
-  g.innerHTML = '';
-  docs.forEach(doc => {
-    const d = new Date(doc.docDate), ok = !isNaN(d), h = hits[String(doc.id)];
-    const card = document.createElement('div'); card.className = 'doc' + (editDocData && editDocData.id === doc.id ? ' active' : '');
-    card.innerHTML = `<div class="top"><div class="no">Sayı <b>${hl(doc.docNo, q)}</b></div>
-      <div class="dt"><b>${ok ? d.toLocaleDateString('tr-TR', {day: 'numeric', month: 'long', year: 'numeric'}) : '-'}</b><span>${ok ? d.toLocaleDateString('tr-TR', {weekday: 'long'}) : ''}</span></div></div>
-      <div class="subj">${hl(doc.title, q)}</div><div class="cat">${hl(doc.category || 'Genel Evrak', q)}</div>
-      ${doc.note ? `<div class="note">${hl(doc.note, q)}</div>` : ''}
-      ${h ? `<div class="hit">PDF içinde bulundu — sayfa ${h.slice(0, 6).join(', ')}${h.length > 6 ? ' …' : ''}</div>` : ''}`;
-    card.onclick = () => openPdfViewer(card, doc, h ? h[0] : 0);
-    g.appendChild(card);
-  });
-}
-
-/* görüntüleyici */
-function closePdfViewer(){
-  $('app').classList.remove('open'); document.querySelectorAll('.doc').forEach(c => c.classList.remove('active'));
-  setTimeout(() => { if (!$('app').classList.contains('open')) $('pdfFrame').src = ''; }, 350); editDocData = null;
-}
-function openPdfViewer(card, doc, page){
-  if (!page && editDocData && editDocData.id === doc.id && $('app').classList.contains('open')){ closePdfViewer(); return; }
-  document.querySelectorAll('.doc').forEach(c => c.classList.remove('active')); if (card) card.classList.add('active');
-  editDocData = doc; $('app').classList.add('open');
-  $('pdfFrame').src = 'file://' + doc.filePath + (page ? '#page=' + page : ''); $('vTitle').innerText = `${doc.docNo} — ${doc.title}`;
-}
-async function deleteCurrentDoc(){
-  if (!editDocData) return;
-  if (await customConfirm(`Evrak no <b>${esc(editDocData.docNo)}</b> kalıcı olarak silinecek.<br>Emin misiniz?`, 'Kalıcı silme', true)){
-    const r = await window.electronAPI.deleteDoc({id: editDocData.id, filePath: editDocData.filePath, archiveRoot: archivePath});
-    if (r.success){ showNotification('success', 'Evrak silindi.'); closePdfViewer(); closeModal(); await loadDocuments(); } else await customAlert('Silme hatası: ' + esc(r.error || ''), 'Hata');
-  }
-}
-
-/* PDF ekle / düzenle */
-const pside = $('pside');
-pside.addEventListener('dragover', e => { e.preventDefault(); $('drop').classList.add('over'); });
-pside.addEventListener('dragleave', e => { e.preventDefault(); $('drop').classList.remove('over'); });
-pside.addEventListener('drop', e => {
-  e.preventDefault(); $('drop').classList.remove('over'); const f = e.dataTransfer.files[0]; if (!f) return;
-  if (f.name.toLowerCase().endsWith('.pdf')) processSelectedPdf(f.path); else showNotification('error', 'Lütfen bir PDF dosyası bırakın.');
-});
-async function pickPdf(){ const p = await window.electronAPI.selectPdf(); if (p) processSelectedPdf(p); }
-function processSelectedPdf(p){ currentPdfPath = p; $('drop').classList.add('hidden'); $('mFrame').classList.remove('hidden'); $('mFrame').src = 'file://' + p; }
-function openModal(edit = false){
-  isEditMode = edit; $('mTitle').innerText = edit ? 'Evrak düzenle' : 'Yeni evrak girişi'; show('upload');
-  if (edit){ $('drop').classList.add('hidden'); $('mFrame').classList.remove('hidden'); }
-  else { $('fDate').valueAsDate = new Date(); $('drop').classList.remove('hidden'); $('mFrame').classList.add('hidden'); }
-}
-function closeModal(){ hide('upload'); currentPdfPath = null; ['fNo', 'fTitle', 'fNote'].forEach(i => $(i).value = ''); $('mFrame').src = ''; }
-function editCurrentDoc(){
-  if (!editDocData) return;
-  $('fDate').value = editDocData.docDate || ''; $('fNo').value = editDocData.docNo; $('fTitle').value = editDocData.title; $('fNote').value = editDocData.note || '';
-  $('fCat').value = editDocData.category || 'Genel Evrak'; openModal(true); $('mFrame').src = 'file://' + editDocData.filePath;
-}
-async function saveDocument(){
-  const docDate = $('fDate').value;
-  if (!docDate || !$('fNo').value || !$('fTitle').value){ await customAlert('Tarih, evrak no ve konu özeti zorunludur.', 'Eksik bilgi'); return; }
-  const btn = $('saveBtn'); btn.innerText = 'İşleniyor…'; btn.disabled = true;
-  const data = {sourcePdf: currentPdfPath, archiveRoot: archivePath, year: docDate.split('-')[0], docDate, category: $('fCat').value, docNo: $('fNo').value, title: $('fTitle').value, note: $('fNote').value};
-  let r;
-  if (isEditMode){ data.id = editDocData.id; data.oldYear = editDocData.year; data.oldCategory = editDocData.category; data.oldFilePath = editDocData.filePath; r = await window.electronAPI.updateDoc(data); }
-  else {
-    if (!currentPdfPath){ await customAlert('Kaydetmeden önce bir PDF seçin veya sürükleyin.', 'PDF eksik'); btn.innerText = 'Kaydet'; btn.disabled = false; return; }
-    r = await window.electronAPI.saveDoc(data);
-  }
-  if (r.success){
-    showNotification('success', isEditMode ? 'Evrak güncellendi.' : 'Evrak eklendi. PDF metni arka planda okunuyor.');
-    closeModal(); $('q').value = ''; await loadDocuments(); if (!isEditMode){ closePdfViewer(); if (r.doc) queueOcr(r.doc); }
-  } else await customAlert('İşlem başarısız: ' + esc(r.error || ''), 'Hata');
-  btn.innerText = 'Kaydet'; btn.disabled = false;
-}
-
-/* ---------- PDF metni (OCR) ---------- */
-const U = p => new URL(p, location.href).href;
-pdfjsLib.GlobalWorkerOptions.workerSrc = U('node_modules/pdfjs-dist/build/pdf.worker.js');
-let queue = [], busy = false;
-function ocrStatus(t){ const e = $('ocr'); if (t){ e.innerText = t; e.classList.remove('hidden'); } else e.classList.add('hidden'); }
-function queueOcr(doc){ return new Promise(res => { queue.push({doc, res}); if (!busy) runQueue(); }); }
-async function runQueue(){
-  busy = true;
-  while (queue.length){
-    const {doc, res} = queue.shift(), left = queue.length; let ok = false;
-    try { await processDoc(doc, (i, n) => ocrStatus(`Metin okunuyor: ${doc.docNo} — sayfa ${i}/${n}` + (left ? ` (+${left} evrak sırada)` : ''))); ok = true; }
-    catch (e) { console.error(e); showNotification('error', `Metin okunamadı: ${doc.docNo}`); }
-    res(ok);
-  }
-  busy = false; ocrStatus(null);
-}
-async function processDoc(doc, prog){
-  const buf = await window.electronAPI.readPdf(doc.filePath); if (!buf) throw new Error('PDF okunamadı');
-  const pdf = await pdfjsLib.getDocument({data: new Uint8Array(buf)}).promise, pages = []; let worker = null, usedOcr = false;
-  try {
-    for (let i = 1; i <= pdf.numPages; i++){
-      prog(i, pdf.numPages);
-      const pg = await pdf.getPage(i); let txt = (await pg.getTextContent()).items.map(x => x.str).join(' ').replace(/\s+/g, ' ').trim();
-      if (txt.length < 25){
-        usedOcr = true;
-        worker = worker || await Tesseract.createWorker('tur', 1, {workerPath: U('node_modules/tesseract.js/dist/worker.min.js'), corePath: U('node_modules/tesseract.js-core/'), langPath: U('node_modules/@tesseract.js-data/tur/4.0.0_best_int'), workerBlobURL: false, gzip: true});
-        const vp = pg.getViewport({scale: 2.2}), cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
-        await pg.render({canvasContext: cv.getContext('2d'), viewport: vp}).promise;
-        txt = (await worker.recognize(cv)).data.text.trim();
-      }
-      pages.push(txt);
-    }
-  } finally { if (worker) await worker.terminate(); }
-  await window.electronAPI.saveText(archivePath, doc.id, {pages, source: usedOcr ? 'ocr' : 'pdf', date: new Date().toISOString()});
-  textIds.add(doc.id); return pages;
-}
-async function scanAll(){
-  const todo = documents.filter(d => !textIds.has(d.id)); if (!todo.length){ showNotification('info', 'Okunmamış evrak yok.'); return; }
-  hide('settings'); showNotification('info', `${todo.length} evrak sıraya alındı.`); todo.forEach(d => queueOcr(d));
-}
-const parseTx = s => s.split(/^=== SAYFA \d+ ===\s*$/m).slice(1).map(x => x.trim());
-const fmtTx = pages => pages.map((p, i) => `=== SAYFA ${i + 1} ===\n${p}`).join('\n\n');
-async function openTextEditor(){
-  if (!editDocData) return; txDoc = editDocData; let t = await window.electronAPI.getText(archivePath, txDoc.id);
-  if (!t){
-    showNotification('info', 'Bu evrak daha önce okunmamış, okunuyor…');
-    if (!await queueOcr(txDoc)) return; t = await window.electronAPI.getText(archivePath, txDoc.id);
-  }
-  fillTx(t); show('txEd');
-}
-function fillTx(t){
-  $('txArea').value = fmtTx(t.pages);
-  $('txInfo').innerText = `Kaynak: ${{ocr: 'OCR ile okundu', pdf: 'PDF içindeki metin', manual: 'Elle düzenlendi'}[t.source] || t.source}. Bu metin yalnızca “PDF içinde ara” için kullanılır. Sayfa başlıklarını (=== SAYFA n ===) silmeyin.`;
-}
-async function saveTextEdit(){
-  const pages = parseTx($('txArea').value); if (!pages.length){ await customAlert('Sayfa başlıkları bulunamadı. Metin kaydedilmedi.', 'Hata'); return; }
-  const r = await window.electronAPI.saveText(archivePath, txDoc.id, {pages, source: 'manual', date: new Date().toISOString()});
-  if (r.success){ textIds.add(txDoc.id); hide('txEd'); showNotification('success', 'Metin kaydedildi.'); if ($('mode').value === 'pdf') filterDocs(); } else showNotification('error', 'Kaydedilemedi.');
-}
-async function reOcr(){
-  if (!await customConfirm('Metin yeniden okunacak. Elle yaptığınız düzeltmeler <b>silinecek</b>.', 'Yeniden oku', true)) return;
-  hide('txEd'); showNotification('info', 'Yeniden okunuyor…');
-  if (await queueOcr(txDoc)){ fillTx(await window.electronAPI.getText(archivePath, txDoc.id)); show('txEd'); }
-}
-
-document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); $('q').focus(); $('q').select(); }
-  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n'){ e.preventDefault(); openModal(); }
-  else if (e.key === 'Escape'){ if (!$('txEd').classList.contains('hidden')) hide('txEd'); else if (!$('upload').classList.contains('hidden')) closeModal(); else if (!$('settings').classList.contains('hidden')) hide('settings'); else closePdfViewer(); }
-});
-</script>
+  <script src="script.js"></script>
 </body>
 </html>
-
-

@@ -34,8 +34,8 @@ function createWindows() {
   mainWindow = new BrowserWindow({
     width: 1500, height: 900, 
     frame: false, show: false, 
-    transparent: true, // Arka planın görünmesi için
-    backgroundColor: '#00000000',
+    transparent: true, // Arka plan tamamen şeffaf
+    hasShadow: false, // Kendi 3D gölgelerimizi CSS ile yapacağız
     icon: path.join(__dirname, 'icon.ico'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
@@ -119,7 +119,6 @@ ipcMain.handle('evrak-sil', async (e, id) => {
 
 ipcMain.handle('evrakleri-getir', () => new Promise(res => db ? db.all("SELECT * FROM evraklar ORDER BY evrak_tarihi DESC", [], (err, rows) => res(err ? [] : rows)) : res([])));
 ipcMain.handle('pdf-oku', async (e, yol) => { try { return { basarili: true, veri: fs.readFileSync(yol).toString('base64') }; } catch (err) { return { basarili: false, mesaj: err.message }; } });
-
 ipcMain.handle('pdf-disa-aktar', async (e, kaynakYol, onerilenIsim) => {
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, { defaultPath: onerilenIsim, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (!canceled && filePath) { fs.copyFileSync(kaynakYol, filePath); return { basarili: true }; }

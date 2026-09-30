@@ -6,16 +6,6 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="bg-glow"></div>
-  
-  <div id="context-menu" class="context-menu">
-    <div class="context-item" id="ctx-duzenle">✏️ Düzenle</div>
-    <div class="context-item" id="ctx-disa-aktar">💾 Farklı Kaydet (Dışa Aktar)</div>
-    <div class="context-item" id="ctx-yazdir">🖨️ Yazdır</div>
-    <div class="context-separator"></div>
-    <div class="context-item ctx-danger" id="ctx-sil">🗑️ Sil</div>
-  </div>
-
   <div id="app-container">
     <header id="topbar">
       <div class="top-left">
@@ -30,18 +20,23 @@
     </header>
 
     <div id="main-workspace">
-      <!-- Akıllı Daralan Sol Menü (Mini Mod Wrapper'ı) -->
+      <!-- Akıllı Daralan Sol Menü -->
       <div id="sidebar-wrapper">
         <nav id="sidebar">
           <div id="tree-menu" class="tree-menu"></div>
-          <button class="settings-btn" onclick="ayarlarModalAc()" title="Ayarlar (Ctrl+S)">⚙️</button>
-          <button class="add-btn" onclick="modalAc('yeni')" title="Yeni Evrak (Ctrl+N)"><span class="plus-icon">+</span></button>
+          <div class="sidebar-bottom-controls">
+            <button class="icon-btn settings-btn" onclick="ayarlarModalAc()" title="Ayarlar (Ctrl+S)">⚙️️</button>
+            <button class="icon-btn add-btn" onclick="modalAc('yeni')" title="Yeni Evrak (Ctrl+N)">➕</button>
+          </div>
         </nav>
       </div>
 
       <main id="content-area">
         <div class="content-header">
-          <div class="search-container"><input type="text" id="arama-kutusu" placeholder="Arşivde evrak ara (Ctrl+F)..."></div>
+          <div class="search-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="arama-kutusu" placeholder="Arşivde evrak ara (Konu, Sayı veya Kategori)...">
+          </div>
         </div>
         <div id="cards-container"></div>
       </main>
@@ -53,6 +48,7 @@
     </div>
   </div>
 
+  <!-- KAYIT / DÜZENLE MODALI -->
   <div id="modal-overlay" class="overlay">
     <div class="modal-box">
       <div class="modal-form">
@@ -67,14 +63,15 @@
       </div>
       <div class="modal-pdf">
         <div class="pdf-upload-header">
-          <span style="color:white; font-weight:bold; font-size:14px;" id="pdf-upload-title">PDF Yükle</span>
-          <label class="custom-file-btn" id="btn-pdf-degistir" style="display:none;">PDF Seç / Değiştir<input type="file" id="pdf-file-edit" accept="application/pdf"></label>
+          <span class="pdf-upload-title" id="pdf-upload-title">PDF Yükle</span>
+          <label class="custom-file-btn" id="btn-pdf-degistir" style="display:none;">PDF Değiştir<input type="file" id="pdf-file-edit" accept="application/pdf"></label>
           <button class="modal-close" onclick="modalKapat()">✕</button>
         </div>
+        <!-- Temiz Sürükle Bırak Alanı -->
         <div id="drag-zone" class="drag-zone">
           <div style="pointer-events: none;">
-            <div style="font-size: 40px; margin-bottom: 10px;">📄</div>
-            <div id="drag-text">PDF dosyasını buraya sürükleyin veya tıklayıp seçin</div>
+            <div style="font-size: 40px; margin-bottom: 10px; color: var(--primary);">📄</div>
+            <div id="drag-text">PDF dosyasını buraya sürükleyin veya seçin</div>
           </div>
           <input type="file" id="pdf-file" accept="application/pdf" style="display:none;">
         </div>
@@ -83,6 +80,7 @@
     </div>
   </div>
 
+  <!-- AYARLAR VE UYARI MODALLARI -->
   <div id="setup-overlay" class="overlay"><div class="setup-box" style="width: 550px;"><h2 id="setup-title">Sistem Ayarları</h2><div class="current-path" id="guncel-yol">Şu anki yol: Seçilmedi</div><button class="submit-btn" style="margin-bottom: 20px;" onclick="klasorSecmeIslemi()">Arşiv Klasörünü Değiştir</button><div class="settings-section"><h3>Kategori Yönetimi</h3><div style="display:flex; gap:10px; margin-bottom: 15px;"><input type="text" id="yeni-kategori-input" placeholder="Yeni kategori..." style="flex:1;"><button class="submit-btn" style="padding: 10px 15px;" onclick="kategoriEkle()">Ekle</button></div><div id="kategori-listesi"></div></div><div class="setup-buttons" style="margin-top: 20px;"><button class="modal-close-btn" id="setup-kapat-btn" onclick="ayarlarModalKapat()" style="display:none;">Kapat</button></div></div></div>
   <div id="custom-alert" class="overlay"><div class="setup-box" style="width: 350px;"><h2>Uyarı</h2><p id="alert-message" style="margin-bottom: 25px;"></p><button class="submit-btn" onclick="document.getElementById('custom-alert').classList.remove('show')">Tamam</button></div></div>
   <div id="custom-confirm" class="overlay"><div class="setup-box" style="width: 350px;"><h2>Emin misiniz?</h2><p id="confirm-message" style="margin-bottom: 25px;"></p><div class="setup-buttons"><button class="submit-btn" id="confirm-yes">Evet</button><button class="modal-close-btn" onclick="document.getElementById('custom-confirm').classList.remove('show')">İptal</button></div></div></div>

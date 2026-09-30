@@ -19,6 +19,9 @@ function initDB(yol) {
   db = new sqlite3.Database(path.join(yol, 'ndys_veritabani.db'), (err) => {
     if (!err) db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
   });
+  
+  // Tabloları Oluştur
+  db.run(`CREATE TABLE IF NOT EXISTS sistem_bilgi (id INTEGER PRIMARY KEY, versiyon TEXT)`);
   db.run(`CREATE TABLE IF NOT EXISTS evraklar (id INTEGER PRIMARY KEY AUTOINCREMENT, evrak_sayisi TEXT, evrak_tarihi TEXT, evrak_konusu TEXT, kategori TEXT, kisa_aciklama TEXT, dosya_yolu TEXT, okunan_metin TEXT, kayit_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP)`, () => {
     db.run(`ALTER TABLE evraklar ADD COLUMN okunan_metin TEXT`, () => {}); 
   });
@@ -52,6 +55,34 @@ app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(
 ipcMain.on('window-minimize', () => mainWindow.minimize());
 ipcMain.on('window-maximize', () => mainWindow.isMaximized() ? mainWindow.restore() : mainWindow.maximize());
 ipcMain.on('window-close', () => mainWindow.close());
+ipcMain.on('force-quit', () => app.quit());
+
+// VERİTABANI ODAKLI VERSİYON KONTROLÜ
+ipcMain.handle('versiyon-kontrol', async (e, appVersion) => {
+  if(!db) return { durum: 'db_yok' };
+  return new Promise((resolve) => {
+    db.get(`SELECT versiyon FROM sistem_bilgi WHERE id = 1`, (err, row) => {
+      if (!row) {
+        db.run(`INSERT INTO sistem_bilgi (id, versiyon) VALUES (1, ?)`, [appVersion]);
+        resolve({ durum: 'guncellendi', dbVersiyon: appVersion });
+      } else {
+        const vApp = appVersion.split('.').map(Number);
+        const vDb = row.versiyon.split('.').map(Number);
+        let cmp = 0;
+        for(let i=0; i<3; i++) { if(vApp[i] > vDb[i]) { cmp = 1; break; } if(vApp[i] < vDb[i]) { cmp = -1; break; } }
+        
+        if (cmp > 0) { // Uygulama yeni, DB eski
+          db.run(`UPDATE sistem_bilgi SET versiyon = ? WHERE id = 1`, [appVersion]);
+          resolve({ durum: 'guncellendi', dbVersiyon: appVersion });
+        } else if (cmp < 0) { // Uygulama eski, DB yeni (ZORUNLU ÇIKIŞ)
+          resolve({ durum: 'eski', dbVersiyon: row.versiyon });
+        } else {
+          resolve({ durum: 'guncel', dbVersiyon: row.versiyon });
+        }
+      }
+    });
+  });
+});
 
 ipcMain.handle('ayarlari-getir', () => getConfig());
 ipcMain.handle('ayarlari-kaydet', (e, data) => { setConfig(data); return true; });
@@ -83,8 +114,9 @@ ipcMain.handle('evrak-kaydet', async (e, data) => {
     if (!fs.existsSync(kategoriKlasoru)) fs.mkdirSync(kategoriKlasoru);
     const yeniPdfYolu = path.join(kategoriKlasoru, `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`);
     fs.writeFileSync(yeniPdfYolu, Buffer.from(data.pdfBuffer));
+    // Kisa aciklamayi bos gonderiyoruz (Veritabanini bozmamak icin kolonu koruduk)
     return new Promise((res, rej) => db.run(`INSERT INTO evraklar (evrak_sayisi, evrak_tarihi, evrak_konusu, kategori, kisa_aciklama, dosya_yolu, okunan_metin) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
-      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, data.evrakAciklama, yeniPdfYolu, data.okunanMetin], err => err ? rej(err.message) : res({ basarili: true })));
+      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, "", yeniPdfYolu, data.okunanMetin], err => err ? rej(err.message) : res({ basarili: true })));
   } catch (err) { return { basarili: false, mesaj: err.message }; }
 });
 
@@ -99,8 +131,8 @@ ipcMain.handle('evrak-guncelle', async (e, data) => {
       yeniYol = path.join(kategoriKlasoru, `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`);
       if (fs.existsSync(eski.dosya_yolu)) fs.renameSync(eski.dosya_yolu, yeniYol);
     }
-    return new Promise((res, rej) => db.run(`UPDATE evraklar SET evrak_sayisi=?, evrak_tarihi=?, evrak_konusu=?, kategori=?, kisa_aciklama=?, dosya_yolu=? WHERE id=?`, 
-      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, data.evrakAciklama, yeniYol, data.id], err => err ? rej(err.message) : res({ basarili: true })));
+    return new Promise((res, rej) => db.run(`UPDATE evraklar SET evrak_sayisi=?, evrak_tarihi=?, evrak_konusu=?, kategori=?, okunan_metin=?, dosya_yolu=? WHERE id=?`, 
+      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, data.okunanMetin, yeniYol, data.id], err => err ? rej(err.message) : res({ basarili: true })));
   } catch (err) { return { basarili: false, mesaj: err.code === 'EBUSY' ? "Dosya kullanımda!" : err.message }; }
 });
 

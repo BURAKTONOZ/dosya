@@ -24,6 +24,7 @@
     "electron-builder": "24.13.3"
   },
   "dependencies": {
+    "pdf-parse": "^1.1.1",
     "sqlite3": "^6.0.1"
   }
 }

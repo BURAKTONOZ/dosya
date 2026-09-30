@@ -1,4 +1,3 @@
-// PDF.js Ayarları (Ön yüz PDF-Resim Çeviricisi)
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 let tumEvraklar = [], aktifKategoriler = [], seciliYil = null, seciliKategori = null;
@@ -8,7 +7,6 @@ function ozelUyari(mesaj) { document.getElementById('alert-message').innerText =
 function ozelOnay(mesaj, cb) { document.getElementById('confirm-message').innerText = mesaj; document.getElementById('confirm-yes').onclick = () => { document.getElementById('custom-confirm').classList.remove('show'); cb(); }; document.getElementById('custom-confirm').classList.add('show'); }
 const formatTR = (t) => t ? t.split('-').reverse().join('.') : '';
 
-// TEMA
 async function temaAyarla(tema) {
   if(tema === 'light') { document.body.classList.remove('dark-mode'); document.body.classList.add('light-mode'); document.getElementById('theme-toggle').innerText = '🌙'; }
   else { document.body.classList.remove('light-mode'); document.body.classList.add('dark-mode'); document.getElementById('theme-toggle').innerText = '☀️'; }
@@ -58,10 +56,11 @@ window.yilTikla = function(yil) {
 
 window.kategoriTikla = function(yil, kategori, event) {
   event.stopPropagation(); seciliYil = yil; seciliKategori = kategori;
-  document.getElementById('aktif-baslik').innerText = `${yil} / ${kategori}`;
+  document.getElementById('aktif-baslik').innerText = `${yil} /${kategori}`;
   agacYapisiniCiz(); aramaYap();
 }
 
+// YENİ, KESİN ÇİZGİLERLE AYRILMIŞ ARAMA MANTIĞI
 document.getElementById('arama-kutusu').addEventListener('input', aramaYap);
 document.getElementById('search-mode-toggle').addEventListener('change', function() {
   document.getElementById('search-mode-text').innerText = this.checked ? "İçerikte Ara" : "Etiketlerde Ara";
@@ -70,7 +69,7 @@ document.getElementById('search-mode-toggle').addEventListener('change', functio
 
 function aramaYap() {
   const kel = document.getElementById('arama-kutusu').value.toLowerCase();
-  const derinArama = document.getElementById('search-mode-toggle').checked;
+  const derinArama = document.getElementById('search-mode-toggle').checked; // True ise SADECE İçerik, False ise SADECE Form
   
   let filt = tumEvraklar;
   if(seciliYil) filt = filt.filter(e => e.evrak_tarihi.startsWith(seciliYil));
@@ -78,12 +77,16 @@ function aramaYap() {
   
   if(kel) {
     filt = filt.filter(e => {
-      const etiketlerdeVar = e.evrak_konusu.toLowerCase().includes(kel) || e.evrak_sayisi.includes(kel) || e.kategori.toLowerCase().includes(kel) || e.kisa_aciklama.toLowerCase().includes(kel);
       if(derinArama) {
-        const icerikteVar = e.okunan_metin && e.okunan_metin.toLowerCase().includes(kel);
-        return etiketlerdeVar || icerikteVar;
+        // Sadece OCR Metni içinde arar
+        return e.okunan_metin && e.okunan_metin.toLowerCase().includes(kel);
+      } else {
+        // Sadece Form Doldurulan verilerde arar
+        return (e.evrak_konusu && e.evrak_konusu.toLowerCase().includes(kel)) || 
+               (e.evrak_sayisi && e.evrak_sayisi.includes(kel)) || 
+               (e.kategori && e.kategori.toLowerCase().includes(kel)) || 
+               (e.kisa_aciklama && e.kisa_aciklama.toLowerCase().includes(kel));
       }
-      return etiketlerdeVar;
     });
   }
   kartlariCiz(filt);
@@ -97,14 +100,20 @@ function kartlariCiz(liste) {
   liste.forEach(evrak => {
     const card = document.createElement('div');
     card.className = `a4-card ${seciliKartId === evrak.id ? 'active' : ''}`;
-    card.title = evrak.kisa_aciklama; 
+    card.title = "Kısa Açıklama:\n" + evrak.kisa_aciklama + (evrak.okunan_metin ? "\n\nOkunan Metin:\n" + evrak.okunan_metin.substring(0, 300) + "..." : ""); 
     card.onclick = () => { if(seciliKartId === evrak.id) { panelKapat(); } else { seciliKartId = evrak.id; belgeGoster(evrak.dosya_yolu, evrak.evrak_konusu); aramaYap(); } };
     
+    // OCR Metni Özeti Ekleniyor
+    let ocrHtml = evrak.okunan_metin && evrak.okunan_metin.trim() !== "" 
+      ? `<div class="a4-ocr-snippet">"${evrak.okunan_metin.substring(0, 150).replace(/\n/g, ' ')}..."</div>` 
+      : ``;
+
     card.innerHTML = `
       <div class="a4-header"><span class="a4-no">No: ${evrak.evrak_sayisi}</span><span class="a4-date">${formatTR(evrak.evrak_tarihi)}</span></div>
       <div class="a4-subject">${evrak.evrak_konusu}</div>
       <div class="a4-category">${evrak.kategori}</div>
       <div class="a4-desc">${evrak.kisa_aciklama}</div>
+      ${ocrHtml}
       <div class="card-hover-menu">
         <button class="card-btn" onclick="event.stopPropagation(); modalAc('duzenle', ${evrak.id})" title="Düzenle">✏️</button>
         <button class="card-btn danger" onclick="event.stopPropagation(); evrakSil(${evrak.id})" title="Sil">🗑️</button>
@@ -122,7 +131,10 @@ async function belgeGoster(yol, konu) {
   const snc = await window.api.pdfOku(yol);
   if(snc.basarili) {
     const b = atob(snc.veri); const arr = new Uint8Array(b.length); for(let i=0;i<b.length;i++) arr[i] = b.charCodeAt(i);
-    document.getElementById('pdf-frame-view').src = URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }));
+    // Genişliğe Sığdır (FitH) Parametresi eklendi
+    const blobUrl = URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }));
+    document.getElementById('pdf-frame-view').src = blobUrl + '#view=FitH';
+    
     document.getElementById('pdf-panel').classList.remove('hidden'); document.getElementById('pdf-panel').classList.add('open'); document.body.classList.add('pdf-open'); 
   }
 }
@@ -135,7 +147,7 @@ window.odakModuGecis = function() {
   if(document.body.classList.contains('focus-mode')) btn.innerText = "🔳"; else btn.innerText = "🔲";
 }
 
-// YENİ KAYIT VE YAPAY ZEKA (HTML5 CANVAS + TESSERACT OCR) İŞLEMİ
+// YENİ KAYIT, OCR VE OTOMATİK KUTU AÇILIMI
 const dragZone = document.getElementById('drag-zone');
 const pdfInput = document.getElementById('pdf-file');
 const preview = document.getElementById('modal-pdf-preview');
@@ -150,9 +162,9 @@ async function dosyaIsle(file) {
   if(file.type !== "application/pdf") return ozelUyari("Sadece PDF seçin.");
   currentFile = file;
   dragZone.style.display = 'none'; preview.style.display = 'block';
-  preview.src = URL.createObjectURL(file);
+  preview.src = URL.createObjectURL(file) + '#view=FitH';
   
-  // OCR Ekranını Hazırla
+  // OCR Ekranını Hazırla (Gizli)
   document.getElementById('ocr-status-area').style.display = 'block';
   document.getElementById('ocr-text-container').style.display = 'none';
   document.getElementById('ocr-progress-bar').style.display = 'block';
@@ -167,7 +179,6 @@ async function dosyaIsle(file) {
     const totalPages = pdf.numPages;
     let fullText = "";
     
-    // Tesseract Worker'ı Doğrudan Tarayıcıda Başlat
     const worker = await Tesseract.createWorker('tur', 1, {
       logger: m => {
         if (m.status === 'recognizing text') {
@@ -177,25 +188,20 @@ async function dosyaIsle(file) {
       }
     });
     
-    // Her sayfayı gizli bir tuvale (Canvas) çizip Yapay Zekaya (Tesseract) besle
     for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
       document.getElementById('ocr-status-text').innerText = `🔍 Taranıyor: Sayfa ${pageNum} / ${totalPages}`;
       
       const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 2.0 }); // Yazıların net okunması için 2x ölçek
-      
+      const viewport = page.getViewport({ scale: 2.0 }); 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-      
+      canvas.height = viewport.height; canvas.width = viewport.width;
       await page.render({ canvasContext: ctx, viewport: viewport }).promise;
       
       const imgData = canvas.toDataURL('image/png');
       const ret = await worker.recognize(imgData);
       fullText += ret.data.text + "\n\n";
     }
-    
     await worker.terminate();
     
     document.getElementById('ocr-progress-bar').style.display = 'none';
@@ -203,6 +209,8 @@ async function dosyaIsle(file) {
       document.getElementById('ocr-status-text').innerText = "✅ Metin Başarıyla Çıkarıldı";
       document.getElementById('ocr-status-text').style.color = "#2ecc71";
       document.getElementById('evrak-okunan-metin').value = fullText;
+      // İŞLEM BİTİNCE OTOMATİK OLARAK METİN KUTUSUNU AÇ
+      document.getElementById('ocr-text-container').style.display = 'block';
     } else {
       throw new Error("Boş metin");
     }
@@ -235,7 +243,7 @@ window.modalAc = function(mod, id = null) {
     window.api.pdfOku(evrak.dosya_yolu).then(s => {
       if(s.basarili) {
         const b = atob(s.veri); const arr = new Uint8Array(b.length); for(let i=0;i<b.length;i++) arr[i] = b.charCodeAt(i);
-        preview.src = URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }));
+        preview.src = URL.createObjectURL(new Blob([arr], { type: 'application/pdf' })) + '#view=FitH';
       }
     });
   }
@@ -263,7 +271,6 @@ document.getElementById('kaydet-btn').onclick = async () => {
   if (sonuc.basarili) { modalKapat(); await yukle(); } else ozelUyari(sonuc.mesaj); 
 };
 
-// Ayarlar ve Kategoriler
 window.ayarlarModalAc = async function() { document.getElementById('guncel-yol').innerText = "Yol: " + ((await window.api.ayarlariGetir()).arsivYolu || "Seçilmedi"); document.getElementById('setup-kapat-btn').style.display = 'block'; kategoriListesiniCiz(); document.getElementById('setup-overlay').classList.add('show'); }
 window.ayarlarModalKapat = () => document.getElementById('setup-overlay').classList.remove('show');
 function kategoriListesiniCiz() { document.getElementById('kategori-listesi').innerHTML = aktifKategoriler.map(k => `<div class="kategori-item"><input type="text" value="${k}" id="kat-input-${k}"><div style="display:flex; gap:5px;"><button class="win-btn" onclick="kategoriGuncelle('${k}')" style="width:auto; padding:0 10px;">💾</button><button class="win-btn win-close" onclick="kategoriSil('${k}')" style="width:auto; padding:0 10px;">🗑</button></div></div>`).join(''); }

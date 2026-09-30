@@ -9,7 +9,10 @@ document.addEventListener('keydown', (e) => {
   if (e.ctrlKey && e.key.toLowerCase() === 'f') { e.preventDefault(); document.getElementById('arama-kutusu').focus(); }
   if (e.ctrlKey && e.key.toLowerCase() === 'n') { e.preventDefault(); modalAc('yeni'); }
   if (e.ctrlKey && e.key.toLowerCase() === 's') { e.preventDefault(); ayarlarModalAc(); }
-  if (e.key === 'Escape') { panelKapat(); modalKapat(); document.getElementById('custom-alert').classList.remove('show'); document.getElementById('custom-confirm').classList.remove('show'); }
+  if (e.key === 'Escape') { 
+    if(document.body.classList.contains('focus-mode')) odakModuGecis();
+    else { panelKapat(); modalKapat(); document.getElementById('custom-alert').classList.remove('show'); document.getElementById('custom-confirm').classList.remove('show'); }
+  }
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -28,15 +31,7 @@ async function yukle() {
   tumEvraklar = await window.api.evrakleriGetir();
   aktifKategoriler = await window.api.kategorileriGetir();
   agacYapisiniCiz();
-  yillariCiz();
   aramaYap();
-}
-
-function yillariCiz() {
-  const container = document.getElementById('year-filters');
-  container.innerHTML = `<div class="year-btn ${!seciliYil ? 'active' : ''}" onclick="filtreUygula(null, null)">Tümü</div>`;
-  const yillar = [...new Set(tumEvraklar.map(e => e.evrak_tarihi.split('-')[0]))].sort().reverse();
-  yillar.forEach(yil => { if(yil) container.innerHTML += `<div class="year-btn ${seciliYil===yil ? 'active' : ''}" onclick="filtreUygula('${yil}', null)">${yil}</div>`; });
 }
 
 function agacYapisiniCiz() {
@@ -52,12 +47,20 @@ function agacYapisiniCiz() {
   });
 }
 
-window.toggleTree = function(el, yil) { el.parentElement.classList.toggle('open'); filtreUygula(yil, null); }
+window.toggleTree = function(el, yil) {
+  el.parentElement.classList.toggle('open');
+  filtreUygula(yil, null); 
+}
 
 window.filtreUygula = function(yil, kategori, event) {
   if(event) event.stopPropagation();
   seciliYil = yil; seciliKategori = kategori;
-  agacYapisiniCiz(); yillariCiz(); aramaYap();
+  
+  let baslik = yil ? (kategori ? `${yil} / ${kategori}` : `${yil} Evrakları`) : "Tüm Arşiv";
+  document.getElementById('aktif-baslik').innerText = baslik;
+  
+  agacYapisiniCiz(); 
+  aramaYap();
 }
 
 document.getElementById('arama-kutusu').addEventListener('input', aramaYap);
@@ -77,27 +80,21 @@ function kartlariCiz(liste) {
   
   liste.forEach(evrak => {
     const card = document.createElement('div');
-    card.className = `card ${seciliKartId === evrak.id ? 'active' : ''}`;
+    card.className = `a4-card ${seciliKartId === evrak.id ? 'active' : ''}`;
     card.onclick = () => { if(seciliKartId === evrak.id) { panelKapat(); } else { seciliKartId = evrak.id; belgeGoster(evrak.dosya_yolu, evrak.evrak_konusu); aramaYap(); } };
     
-    // Klasör renklerini kategoriye göre dinamik yapmak (Görseldeki gibi)
-    const renkler = ['#ff4757', '#2ed573', '#1e90ff', '#ffa502', '#9b59b6'];
-    const rRenk = renkler[evrak.id % renkler.length];
-
     card.innerHTML = `
-      <div class="card-icon" style="background:${rRenk}33; color:${rRenk};">📂</div>
-      <div class="card-content">
-        <div class="card-konu">${evrak.evrak_konusu}</div>
-        <div class="card-detay">
-          <span>No: ${evrak.evrak_sayisi}</span>
-          <span>•</span>
-          <span>${formatTR(evrak.evrak_tarihi)}</span>
-        </div>
+      <div class="a4-header">
+        <span class="a4-no">Sayı: ${evrak.evrak_sayisi}</span>
+        <span class="a4-date">${formatTR(evrak.evrak_tarihi)}</span>
       </div>
-      <div class="card-year-badge">${evrak.evrak_tarihi.split('-')[0]} ❯</div>
+      <div class="a4-subject">${evrak.evrak_konusu}</div>
+      <div class="a4-category">${evrak.kategori}</div>
+      <div class="a4-desc">${evrak.kisa_aciklama}</div>
+      
       <div class="card-hover-menu">
-        <button class="card-btn" onclick="event.stopPropagation(); modalAc('duzenle', ${evrak.id})" title="Düzenle">✏️</button>
-        <button class="card-btn danger" onclick="event.stopPropagation(); evrakSil(${evrak.id})" title="Sil">🗑️</button>
+        <button class="card-btn" onclick="event.stopPropagation(); modalAc('duzenle', ${evrak.id})" title="Düzenle">DÜZENLE</button>
+        <button class="card-btn danger" onclick="event.stopPropagation(); evrakSil(${evrak.id})" title="Sil">SİL</button>
       </div>
     `;
     container.appendChild(card);
@@ -111,7 +108,6 @@ window.evrakSil = function(id) {
   }); 
 };
 
-// BUTON GİZLİ TETİKLEYİCİSİ (HTML içindeki gizli butondan çağrılır)
 document.getElementById('ctx-disa-aktar').onclick = async () => {
   if(!seciliKartId) return;
   const evrak = tumEvraklar.find(e => e.id === seciliKartId);
@@ -129,11 +125,28 @@ async function belgeGoster(yol, konu) {
     for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
     document.getElementById('pdf-frame-view').src = URL.createObjectURL(new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' }));
     document.getElementById('pdf-panel').classList.remove('hidden');
+    document.getElementById('pdf-panel').classList.add('open');
+    document.body.classList.add('pdf-open'); 
   } else ozelUyari("PDF Açılamadı: " + sonuc.mesaj);
 }
-window.panelKapat = function() { seciliKartId = null; document.getElementById('pdf-panel').classList.add('hidden'); setTimeout(()=> document.getElementById('pdf-frame-view').src="", 400); aramaYap(); }
 
-// SÜRÜKLE BIRAK
+window.panelKapat = function() { 
+  seciliKartId = null; 
+  document.getElementById('pdf-panel').classList.remove('open'); 
+  document.getElementById('pdf-panel').classList.add('hidden'); 
+  document.body.classList.remove('pdf-open', 'focus-mode'); 
+  document.getElementById('focus-btn').innerText = "🔲";
+  setTimeout(()=> document.getElementById('pdf-frame-view').src="", 400); 
+  aramaYap(); 
+}
+
+// ODAK MODU (TAM EKRAN PDF)
+window.odakModuGecis = function() {
+  const btn = document.getElementById('focus-btn');
+  document.body.classList.toggle('focus-mode');
+  if(document.body.classList.contains('focus-mode')) btn.innerText = "🔳"; else btn.innerText = "🔲";
+}
+
 const dragZone = document.getElementById('drag-zone');
 const pdfInput = document.getElementById('pdf-file');
 const pdfInputEdit = document.getElementById('pdf-file-edit');
@@ -157,7 +170,7 @@ function dosyaIsle(file) {
 
 window.modalAc = function(mod, id = null) {
   modalModu = mod; currentFile = null;
-  document.getElementById('modal-baslik').innerText = mod === 'yeni' ? "Yeni Evrak" : "Evrak Düzenle";
+  document.getElementById('modal-baslik').innerText = mod === 'yeni' ? "Yeni Evrak Ekle" : "Evrak Düzenle";
   document.getElementById('kaydet-btn').innerText = mod === 'yeni' ? "Kaydet" : "Güncelle";
   document.getElementById('evrak-kategori').innerHTML = aktifKategoriler.map(k => `<option value="${k}">${k}</option>`).join('');
   

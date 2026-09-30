@@ -24,7 +24,8 @@
     "electron-builder": "24.13.3"
   },
   "dependencies": {
-    "pdf-parse": "^1.1.1",
-    "sqlite3": "^6.0.1"
+    "pdf-img-convert": "^1.2.1",
+    "sqlite3": "^6.0.1",
+    "tesseract.js": "^5.0.5"
   }
 }

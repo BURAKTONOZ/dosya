@@ -12,9 +12,7 @@ function getConfig() {
   if (fs.existsSync(configPath)) return JSON.parse(fs.readFileSync(configPath));
   return { arsivYolu: null };
 }
-function setConfig(data) {
-  fs.writeFileSync(configPath, JSON.stringify({ ...getConfig(), ...data }));
-}
+function setConfig(data) { fs.writeFileSync(configPath, JSON.stringify({ ...getConfig(), ...data })); }
 
 function initDB(yol) {
   aktifArsivYolu = yol;
@@ -33,7 +31,7 @@ function createWindows() {
   splashWindow = new BrowserWindow({ width: 500, height: 350, transparent: true, frame: false, alwaysOnTop: true, icon: path.join(__dirname, 'icon.ico') });
   splashWindow.loadFile('splash.html');
   mainWindow = new BrowserWindow({
-    width: 1400, height: 850, frame: false, show: false, backgroundColor: '#0b0812', icon: path.join(__dirname, 'icon.ico'),
+    width: 1400, height: 850, frame: false, show: false, backgroundColor: '#eef2f5', icon: path.join(__dirname, 'icon.ico'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
   mainWindow.loadFile('index.html');
@@ -122,4 +120,3 @@ ipcMain.handle('pdf-disa-aktar', async (e, kaynakYol, onerilenIsim) => {
   if (!canceled && filePath) { fs.copyFileSync(kaynakYol, filePath); return { basarili: true }; }
   return { basarili: false };
 });
-ipcMain.on('pdf-yazdir-harici', (e, yol) => shell.openPath(yol));

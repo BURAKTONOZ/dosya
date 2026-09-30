@@ -34,8 +34,8 @@ function createWindows() {
   mainWindow = new BrowserWindow({
     width: 1500, height: 900, 
     frame: false, show: false, 
-    transparent: true, // Arka plan tamamen şeffaf
-    hasShadow: false, // Kendi 3D gölgelerimizi CSS ile yapacağız
+    transparent: true, 
+    hasShadow: false, 
     icon: path.join(__dirname, 'icon.ico'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });

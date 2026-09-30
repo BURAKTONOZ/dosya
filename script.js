@@ -18,7 +18,7 @@ window.temaDegistir = async function() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   const config = await window.api.ayarlariGetir();
-  temaAyarla(config.tema || 'dark'); // İlk açılışta temayı yükle
+  temaAyarla(config.tema || 'dark');
   if (!config.arsivYolu) { document.getElementById('setup-overlay').classList.add('show'); document.getElementById('setup-title').innerText = "İlk Kurulum"; } 
   else { document.getElementById('guncel-yol').innerText = "Yol: " + config.arsivYolu; await yukle(); }
 });
@@ -90,12 +90,12 @@ function aramaYap() {
 function kartlariCiz(liste) {
   const container = document.getElementById('cards-container');
   container.innerHTML = '';
-  if (liste.length === 0) return container.innerHTML = '<p style="color:var(--text-muted); padding:20px;">Evrak bulunamadı.</p>';
+  if (liste.length === 0) return container.innerHTML = '<p style="color:var(--text-muted); padding:20px;">Kayıt bulunamadı.</p>';
   
   liste.forEach(evrak => {
     const card = document.createElement('div');
     card.className = `a4-card ${seciliKartId === evrak.id ? 'active' : ''}`;
-    card.title = evrak.kisa_aciklama; // Uzun metin hover için
+    card.title = evrak.kisa_aciklama; 
     card.onclick = () => { if(seciliKartId === evrak.id) { panelKapat(); } else { seciliKartId = evrak.id; belgeGoster(evrak.dosya_yolu, evrak.evrak_konusu); aramaYap(); } };
     
     card.innerHTML = `
@@ -124,9 +124,17 @@ async function belgeGoster(yol, konu) {
     document.getElementById('pdf-panel').classList.remove('hidden'); document.getElementById('pdf-panel').classList.add('open'); document.body.classList.add('pdf-open'); 
   }
 }
-window.panelKapat = function() { seciliKartId = null; document.getElementById('pdf-panel').classList.remove('open'); document.getElementById('pdf-panel').classList.add('hidden'); document.body.classList.remove('pdf-open'); document.getElementById('pdf-frame-view').src=""; aramaYap(); }
 
-// YENİ KAYIT VE OCR
+window.panelKapat = function() { seciliKartId = null; document.getElementById('pdf-panel').classList.remove('open'); document.getElementById('pdf-panel').classList.add('hidden'); document.body.classList.remove('pdf-open', 'focus-mode'); document.getElementById('focus-btn').innerText = "🔲"; document.getElementById('pdf-frame-view').src=""; aramaYap(); }
+
+// ODAK MODU (TAM EKRAN PDF)
+window.odakModuGecis = function() {
+  const btn = document.getElementById('focus-btn');
+  document.body.classList.toggle('focus-mode');
+  if(document.body.classList.contains('focus-mode')) btn.innerText = "🔳"; else btn.innerText = "🔲";
+}
+
+// YENİ KAYIT VE YAPAY ZEKA (OCR) İŞLEMİ
 const dragZone = document.getElementById('drag-zone');
 const pdfInput = document.getElementById('pdf-file');
 const preview = document.getElementById('modal-pdf-preview');
@@ -137,41 +145,54 @@ dragZone.ondragleave = () => dragZone.classList.remove('dragover');
 dragZone.ondrop = (e) => { e.preventDefault(); dragZone.classList.remove('dragover'); if(e.dataTransfer.files[0]) dosyaIsle(e.dataTransfer.files[0]); };
 pdfInput.onchange = function() { if (this.files[0]) dosyaIsle(this.files[0]); };
 
+// İlerleme çubuğunu arka plandan (main.js) dinle
+window.api.ocrProgress((data) => {
+  document.getElementById('ocr-progress-bar').style.display = 'block';
+  let yuzde = (data.sayfa / data.toplam) * 100;
+  document.getElementById('ocr-progress-fill').style.width = yuzde + '%';
+  document.getElementById('ocr-status-text').innerText = `🔍 Taranıyor: Sayfa ${data.sayfa} / ${data.toplam}`;
+});
+
 async function dosyaIsle(file) {
-  if(file.type !== "application/pdf") return ozelUyari("Sadece PDF.");
+  if(file.type !== "application/pdf") return ozelUyari("Sadece PDF seçin.");
   currentFile = file;
   dragZone.style.display = 'none'; preview.style.display = 'block';
   preview.src = URL.createObjectURL(file);
-  document.getElementById('pdf-upload-title').innerText = "Yeni Dosya Yüklendi";
   
-  // OCR İŞLEMİ BAŞLAT
+  // OCR Ekranını Hazırla
   document.getElementById('ocr-status-area').style.display = 'block';
   document.getElementById('ocr-text-container').style.display = 'none';
-  document.getElementById('ocr-status-text').innerText = "⏳ PDF İçeriği Okunuyor...";
+  document.getElementById('ocr-progress-bar').style.display = 'block';
+  document.getElementById('ocr-progress-fill').style.width = '0%';
+  document.getElementById('ocr-status-text').innerText = "⏳ Yapay Zeka Motoru Başlatılıyor...";
+  document.getElementById('ocr-status-text').style.color = "var(--primary)";
   document.getElementById('evrak-okunan-metin').value = "";
   
   const buffer = await file.arrayBuffer();
-  const snc = await window.api.pdfMetinCikar(buffer);
+  
+  // Arka planda ağır OCR işlemini bekle
+  const snc = await window.api.pdfMetinCikarOcr(buffer);
+  
+  document.getElementById('ocr-progress-bar').style.display = 'none';
   if(snc.basarili && snc.metin.trim() !== "") {
-    document.getElementById('ocr-status-text').innerText = "✅ Metin Çıkarıldı";
+    document.getElementById('ocr-status-text').innerText = "✅ Metin Başarıyla Çıkarıldı";
     document.getElementById('ocr-status-text').style.color = "#2ecc71";
     document.getElementById('evrak-okunan-metin').value = snc.metin;
   } else {
-    document.getElementById('ocr-status-text').innerText = "⚠️ Metin Bulunamadı (Taranmış resim olabilir)";
+    document.getElementById('ocr-status-text').innerText = "⚠️ Metin Okunamadı (Görsel Net Değil)";
     document.getElementById('ocr-status-text').style.color = "#e74c3c";
   }
 }
 
 window.modalAc = function(mod, id = null) {
   modalModu = mod; currentFile = null;
-  document.getElementById('modal-baslik').innerText = mod === 'yeni' ? "Yeni Evrak" : "Evrak Düzenle";
+  document.getElementById('modal-baslik').innerText = mod === 'yeni' ? "Yeni Evrak Ekle" : "Evrak Düzenle";
   document.getElementById('evrak-kategori').innerHTML = aktifKategoriler.map(k => `<option value="${k}">${k}</option>`).join('');
   document.getElementById('ocr-status-area').style.display = 'none';
   
   if(mod === 'yeni') {
     ['evrak-id','evrak-sayisi','evrak-tarihi','evrak-konusu','evrak-aciklama','evrak-okunan-metin'].forEach(i => document.getElementById(i).value = "");
     dragZone.style.display = 'flex'; preview.style.display = 'none'; preview.src = "";
-    document.getElementById('pdf-upload-title').innerText = "PDF Yükle";
   } else {
     const evrak = tumEvraklar.find(e => e.id === id);
     document.getElementById('evrak-id').value = evrak.id;
@@ -181,9 +202,7 @@ window.modalAc = function(mod, id = null) {
     document.getElementById('evrak-konusu').value = evrak.evrak_konusu;
     document.getElementById('evrak-aciklama').value = evrak.kisa_aciklama;
     
-    // Düzenlemede PDF Yükleme Ekranı Yok, Sadece Önizleme Var
     dragZone.style.display = 'none'; preview.style.display = 'block';
-    document.getElementById('pdf-upload-title').innerText = "Mevcut Evrak (Değiştirilemez)";
     window.api.pdfOku(evrak.dosya_yolu).then(s => {
       if(s.basarili) {
         const b = atob(s.veri); const arr = new Uint8Array(b.length); for(let i=0;i<b.length;i++) arr[i] = b.charCodeAt(i);
@@ -202,7 +221,7 @@ document.getElementById('kaydet-btn').onclick = async () => {
   const tarih = document.getElementById('evrak-tarihi').value;
   const konu = document.getElementById('evrak-konusu').value;
   const aciklama = document.getElementById('evrak-aciklama').value;
-  const okunanMetin = document.getElementById('evrak-okunan-metin').value; // OCR Verisi
+  const okunanMetin = document.getElementById('evrak-okunan-metin').value;
 
   if (!kategori || !sayi || !tarih || !konu) return ozelUyari("Eksik alanları doldurun.");
   if (modalModu === 'yeni' && !currentFile) return ozelUyari("PDF yüklemek zorunludur.");

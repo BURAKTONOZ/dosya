@@ -7,7 +7,10 @@
 </head>
 <body>
 
-  <!-- SÜRÜKLENEBİLİR ÜST BAR (Top Bar Modülü) -->
+  <!-- Arka Plan Görseli / Blur Katmanı -->
+  <div id="desktop-bg"></div>
+
+  <!-- SÜRÜKLENEBİLİR ÜST BAR -->
   <header class="top-bar-module">
     <div class="top-logo-area">
       <img src="icon.ico" class="top-logo" alt="Logo" onerror="this.style.display='none'">
@@ -21,31 +24,26 @@
       <input type="text" id="arama-kutusu" placeholder="Evrak no, konu veya kategori ile arayın... (Ctrl + F)">
     </div>
 
+    <!-- Ayarlar ve Pencere Kontrolleri (Profil Silindi) -->
     <div class="window-controls">
-      <div class="profile-info">
-        <div class="avatar">👤</div>
-        <div class="profile-text">
-          <div class="profile-name">Burak TONOZ</div>
-          <div class="profile-title">Harita Mühendisi</div>
-        </div>
-      </div>
+      <button class="win-btn settings-btn-top" onclick="ayarlarModalAc()" title="Sistem Ayarları">⚙️</button>
+      <div class="divider"></div>
       <button class="win-btn" onclick="window.api.minimize()">—</button>
       <button class="win-btn" onclick="window.api.maximize()">🗖</button>
       <button class="win-btn win-close" onclick="window.api.close()">✕</button>
     </div>
   </header>
 
-  <!-- ANA ÇALIŞMA ALANI (Havada Asılı Modüller) -->
+  <!-- ANA ÇALIŞMA ALANI (3 SÜTUN) -->
   <div id="workspace">
     
-    <!-- SOL: AĞAÇ MENÜ -->
+    <!-- SOL: AĞAÇ MENÜ (Buton Yapısı) -->
     <nav class="glass-module left-menu">
       <div class="menu-title">📂 Klasör Dizini</div>
       <div id="tree-menu" class="tree-menu"></div>
       
       <div class="left-bottom-actions">
-        <button class="action-btn" onclick="ayarlarModalAc()">⚙️ Ayarlar</button>
-        <button class="action-btn highlight" onclick="modalAc('yeni')">➕ Yeni Evrak</button>
+        <button class="action-btn highlight" onclick="modalAc('yeni')">➕ Yeni Evrak Ekle</button>
       </div>
     </nav>
 
@@ -57,7 +55,7 @@
       <div id="cards-container"></div>
     </main>
 
-    <!-- SAĞ: PDF OKUYUCU (Gizliyken yer kaplamaz) -->
+    <!-- SAĞ: PDF OKUYUCU -->
     <aside class="glass-module right-pdf hidden" id="pdf-panel">
       <div class="pdf-header">
         <div class="pdf-title-box">
@@ -78,10 +76,9 @@
 
   </div>
 
-  <!-- GİZLİ BUTON (Dışa aktar için IPC tetiği) -->
   <button id="ctx-disa-aktar" style="display:none;"></button>
 
-  <!-- YENİ/DÜZENLE MODALI (Ultra Blur 3D Plaka) -->
+  <!-- YENİ/DÜZENLE MODALI -->
   <div id="modal-overlay" class="overlay">
     <div class="modal-box">
       <div class="modal-form">

@@ -15,8 +15,5 @@ contextBridge.exposeInMainWorld('api', {
   evrakSil: (id) => ipcRenderer.invoke('evrak-sil', id),
   evrakleriGetir: () => ipcRenderer.invoke('evrakleri-getir'),
   pdfOku: (yol) => ipcRenderer.invoke('pdf-oku', yol),
-  pdfDisaAktar: (yol, isim) => ipcRenderer.invoke('pdf-disa-aktar', yol, isim),
-  // OCR IPC Kanalları
-  pdfMetinCikarOcr: (buffer) => ipcRenderer.invoke('pdf-metin-cikar-ocr', buffer),
-  ocrProgress: (callback) => ipcRenderer.on('ocr-progress', (event, data) => callback(data))
+  pdfDisaAktar: (yol, isim) => ipcRenderer.invoke('pdf-disa-aktar', yol, isim)
 });

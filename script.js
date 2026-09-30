@@ -1,5 +1,5 @@
 let tumEvraklar = [], aktifKategoriler = [], seciliYil = null, seciliKategori = null;
-let modalModu = 'yeni', seciliKartId = null, sagTikEvrak = null, currentFile = null;
+let modalModu = 'yeni', seciliKartId = null, currentFile = null;
 
 function ozelUyari(mesaj) { document.getElementById('alert-message').innerText = mesaj; document.getElementById('custom-alert').classList.add('show'); }
 function ozelOnay(mesaj, cb) { document.getElementById('confirm-message').innerText = mesaj; document.getElementById('confirm-yes').onclick = () => { document.getElementById('custom-confirm').classList.remove('show'); cb(); }; document.getElementById('custom-confirm').classList.add('show'); }
@@ -11,8 +11,6 @@ document.addEventListener('keydown', (e) => {
   if (e.ctrlKey && e.key.toLowerCase() === 's') { e.preventDefault(); ayarlarModalAc(); }
   if (e.key === 'Escape') { panelKapat(); modalKapat(); document.getElementById('custom-alert').classList.remove('show'); document.getElementById('custom-confirm').classList.remove('show'); }
 });
-
-document.addEventListener('click', (e) => { if(!e.target.closest('.context-menu')) document.getElementById('context-menu').style.display = 'none'; });
 
 document.addEventListener('DOMContentLoaded', async () => {
   const config = await window.api.ayarlariGetir();
@@ -80,31 +78,37 @@ function kartlariCiz(liste) {
       if(seciliKartId === evrak.id) { panelKapat(); } 
       else { seciliKartId = evrak.id; belgeGoster(evrak.dosya_yolu, evrak.evrak_konusu); aramaYap(); }
     };
-    card.oncontextmenu = (e) => {
-      e.preventDefault(); sagTikEvrak = evrak;
-      const ctx = document.getElementById('context-menu');
-      ctx.style.display = 'flex'; ctx.style.left = e.pageX + 'px'; ctx.style.top = e.pageY + 'px';
-    };
-    card.innerHTML = `<div class="card-header"><span class="card-tarih">${formatTR(evrak.evrak_tarihi)}</span><span class="card-sayi">Sayı: ${evrak.evrak_sayisi}</span></div><div class="card-kategori">${evrak.kategori}</div><div class="card-konu">${evrak.evrak_konusu}</div><div class="card-aciklama">${evrak.kisa_aciklama}</div>`;
+    
+    // KART ÜZERİNDE GİZLİ ÇIKAN BUTONLAR (Tıklamayı içeriye aktarmaz e.stopPropagation)
+    card.innerHTML = `
+      <div class="card-hover-menu">
+        <button class="card-btn" onclick="event.stopPropagation(); modalAc('duzenle', ${evrak.id})" title="Düzenle">✏️</button>
+        <button class="card-btn" onclick="event.stopPropagation(); disaAktar(${evrak.id})" title="Farklı Kaydet">💾</button>
+        <button class="card-btn danger" onclick="event.stopPropagation(); evrakSil(${evrak.id})" title="Sil">🗑️</button>
+      </div>
+      <div class="card-header"><span class="card-tarih">${formatTR(evrak.evrak_tarihi)}</span><span class="card-sayi">Sayı: ${evrak.evrak_sayisi}</span></div>
+      <div class="card-kategori">${evrak.kategori}</div>
+      <div class="card-konu">${evrak.evrak_konusu}</div>
+      <div class="card-aciklama">${evrak.kisa_aciklama}</div>
+    `;
     container.appendChild(card);
   });
 }
 
-document.getElementById('ctx-duzenle').onclick = () => { if(sagTikEvrak) modalAc('duzenle', sagTikEvrak.id); };
-document.getElementById('ctx-sil').onclick = () => { 
-  if(!sagTikEvrak) return;
+window.evrakSil = function(id) {
   ozelOnay("Bu evrakı kalıcı olarak silmek istediğinize emin misiniz?", async () => {
-    const snc = await window.api.evrakSil(sagTikEvrak.id);
-    if(snc.basarili) { if(seciliKartId === sagTikEvrak.id) panelKapat(); await yukle(); } else ozelUyari(snc.mesaj); 
+    const snc = await window.api.evrakSil(id);
+    if(snc.basarili) { if(seciliKartId === id) panelKapat(); await yukle(); } else ozelUyari(snc.mesaj); 
   }); 
 };
-document.getElementById('ctx-disa-aktar').onclick = async () => {
-  if(!sagTikEvrak) return;
-  const isim = `${sagTikEvrak.evrak_sayisi}_${sagTikEvrak.evrak_konusu}.pdf`.replace(/[/\\?%*:|"<>]/g, '-');
-  const snc = await window.api.pdfDisaAktar(sagTikEvrak.dosya_yolu, isim);
-  if(snc.basarili) ozelUyari("PDF başarıyla kaydedildi!");
+
+window.disaAktar = async function(id) {
+  const evrak = tumEvraklar.find(e => e.id === id);
+  if(!evrak) return;
+  const isim = `${evrak.evrak_sayisi}_${evrak.evrak_konusu}.pdf`.replace(/[/\\?%*:|"<>]/g, '-');
+  const snc = await window.api.pdfDisaAktar(evrak.dosya_yolu, isim);
+  if(snc.basarili) ozelUyari("PDF başarıyla masaüstüne/seçilen yere kaydedildi!");
 };
-document.getElementById('ctx-yazdir').onclick = () => { if(sagTikEvrak) window.api.pdfYazdirHarici(sagTikEvrak.dosya_yolu); };
 
 async function belgeGoster(yol, konu) {
   document.getElementById('pdf-view-title').innerText = konu;
@@ -115,11 +119,12 @@ async function belgeGoster(yol, konu) {
     for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
     document.getElementById('pdf-frame-view').src = URL.createObjectURL(new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' }));
     document.getElementById('pdf-panel').classList.add('open');
-    document.body.classList.add('pdf-open'); // Sol menüyü daraltır ve kartları tek sütun yapar
+    document.body.classList.add('pdf-open'); 
   } else ozelUyari("PDF Açılamadı: " + sonuc.mesaj);
 }
 window.panelKapat = function() { seciliKartId = null; document.getElementById('pdf-panel').classList.remove('open'); document.body.classList.remove('pdf-open'); setTimeout(()=> document.getElementById('pdf-frame-view').src="", 400); aramaYap(); }
 
+// TEMİZ SÜRÜKLE BIRAK ALANI
 const dragZone = document.getElementById('drag-zone');
 const pdfInput = document.getElementById('pdf-file');
 const pdfInputEdit = document.getElementById('pdf-file-edit');
@@ -135,8 +140,8 @@ pdfInputEdit.onchange = function() { if (this.files[0]) dosyaIsle(this.files[0])
 function dosyaIsle(file) {
   if(file.type !== "application/pdf") return ozelUyari("Lütfen sadece PDF dosyası seçin.");
   currentFile = file;
-  dragZone.style.display = 'none';
-  preview.style.display = 'block';
+  dragZone.style.display = 'none'; // Sürükle alanı gizlenir
+  preview.style.display = 'block'; // Sadece PDF görünür
   preview.src = URL.createObjectURL(file);
   document.getElementById('pdf-upload-title').innerText = file.name;
   document.getElementById('btn-pdf-degistir').style.display = 'inline-block';

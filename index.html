@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>NDYS</title>
   <link rel="stylesheet" href="style.css">
-  <!-- YAPAY ZEKA VE PDF MOTORLARI (İNTERNETTEN ANINDA ÇEKİLİR) -->
+  <!-- İnternetsiz kullanım için ileride bu dosyaları indirip yollarını yerel yapabilirsin -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
@@ -32,7 +32,7 @@
     </div>
 
     <div class="window-controls">
-      <button class="win-btn" id="theme-toggle" onclick="temaDegistir()" title="Gece/Gündüz Modu">☀️️</button>
+      <button class="win-btn" id="theme-toggle" onclick="temaDegistir()" title="Gece/Gündüz Modu">☀️</button>
       <button class="win-btn" onclick="ayarlarModalAc()" title="Sistem Ayarları">⚙️</button>
       <div class="divider"></div>
       <button class="win-btn" onclick="window.api.minimize()">—</button>
@@ -90,19 +90,19 @@
         <div class="form-group"><label>Evrak Sayısı</label><input type="text" id="evrak-sayisi"></div>
         <div class="form-group"><label>Evrak Tarihi</label><input type="date" id="evrak-tarihi"></div>
         <div class="form-group"><label>Evrak Konusu</label><input type="text" id="evrak-konusu"></div>
-        <div class="form-group"><label>Kısa Açıklama</label><textarea id="evrak-aciklama" rows="3"></textarea></div>
+        <div class="form-group"><label>Kısa Açıklama</label><textarea id="evrak-aciklama" rows="4"></textarea></div>
         
-        <!-- Gizli OCR / Metin Alanı ve Progress Bar -->
-        <div id="ocr-status-area" style="display:none; margin-top:10px; padding:10px; background:var(--bg-light); border-radius:8px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-            <span id="ocr-status-text" style="font-size:12px; font-weight:bold; color:var(--primary);">Yükleniyor...</span>
-            <button class="icon-btn" style="width:auto; padding:5px 10px; font-size:11px;" onclick="document.getElementById('ocr-text-container').style.display='block'">Gör/Düzenle</button>
+        <!-- Gizli OCR / Metin Alanı ve Progress Bar (Otomatik Açılır) -->
+        <div id="ocr-status-area" style="display:none; margin-top:15px; padding:15px; background:var(--bg-light); border-radius:12px; border:1px solid var(--border);">
+          <div style="margin-bottom:10px; text-align:center;">
+            <span id="ocr-status-text" style="font-size:13px; font-weight:bold; color:var(--primary);">Yükleniyor...</span>
           </div>
-          <div id="ocr-progress-bar" style="width:100%; background:var(--border); height:6px; border-radius:3px; overflow:hidden; margin-bottom:10px; display:none;">
-            <div id="ocr-progress-fill" style="width:0%; background:var(--primary); height:100%; transition:0.3s;"></div>
+          <div id="ocr-progress-bar" style="width:100%; background:var(--border); height:8px; border-radius:4px; overflow:hidden; margin-bottom:15px; display:none;">
+            <div id="ocr-progress-fill" style="width:0%; background:var(--primary); height:100%; transition:0.3s; box-shadow: 0 0 10px var(--primary);"></div>
           </div>
-          <div id="ocr-text-container" style="display:none;">
-            <textarea id="evrak-okunan-metin" rows="4" style="font-size:11px;" placeholder="Yapay Zeka bu alana taranmış metni çıkaracaktır."></textarea>
+          <div id="ocr-text-container" style="display:none; animation: fadeIn 0.5s;">
+            <label style="font-size:11px; color:var(--primary); margin-bottom:5px;">Yapay Zeka Tarafından Okunan Metin:</label>
+            <textarea id="evrak-okunan-metin" rows="6" style="font-size:11px;" placeholder="Yapay Zeka bu alana taranmış metni çıkaracaktır."></textarea>
           </div>
         </div>
 

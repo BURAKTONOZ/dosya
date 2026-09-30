@@ -3,6 +3,8 @@ contextBridge.exposeInMainWorld('api', {
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
+  forceQuit: () => ipcRenderer.send('force-quit'),
+  versiyonKontrol: (ver) => ipcRenderer.invoke('versiyon-kontrol', ver),
   klasorSec: () => ipcRenderer.invoke('klasor-sec'),
   ayarlariGetir: () => ipcRenderer.invoke('ayarlari-getir'),
   ayarlariKaydet: (data) => ipcRenderer.invoke('ayarlari-kaydet', data),

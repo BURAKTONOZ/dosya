@@ -1,8 +1,11 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
-const pdfParse = require('pdf-parse'); // PDF Metin Okuyucu
+
+// OCR Paketleri
+const pdf2img = require('pdf-img-convert');
+const { createWorker } = require('tesseract.js');
 
 const userDataPath = app.getPath('userData');
 const configPath = path.join(userDataPath, 'config.json');
@@ -20,13 +23,9 @@ function initDB(yol) {
   db = new sqlite3.Database(path.join(yol, 'ndys_veritabani.db'), (err) => {
     if (!err) db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
   });
-  
-  // okunan_metin sütunu ile tablo oluştur
   db.run(`CREATE TABLE IF NOT EXISTS evraklar (id INTEGER PRIMARY KEY AUTOINCREMENT, evrak_sayisi TEXT, evrak_tarihi TEXT, evrak_konusu TEXT, kategori TEXT, kisa_aciklama TEXT, dosya_yolu TEXT, okunan_metin TEXT, kayit_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP)`, () => {
-    // Eski veritabanı varsa ve okunan_metin sütunu yoksa ekle
     db.run(`ALTER TABLE evraklar ADD COLUMN okunan_metin TEXT`, () => {}); 
   });
-  
   db.run(`CREATE TABLE IF NOT EXISTS kategoriler (id INTEGER PRIMARY KEY AUTOINCREMENT, ad TEXT UNIQUE)`, () => {
     db.get(`SELECT COUNT(*) as count FROM kategoriler`, (err, row) => {
       if (row && row.count === 0) ["Mahkeme Yazıları", "İsimlendirme Yazıları", "Genel Vatandaş Dilekçeleri"].forEach(k => db.run(`INSERT INTO kategoriler (ad) VALUES (?)`, [k]));
@@ -39,9 +38,7 @@ function createWindows() {
   splashWindow.loadFile('splash.html');
   
   mainWindow = new BrowserWindow({
-    width: 1500, height: 900, 
-    frame: false, show: false, 
-    transparent: true, hasShadow: false, 
+    width: 1500, height: 900, frame: false, show: false, transparent: true, hasShadow: false, 
     icon: path.join(__dirname, 'icon.ico'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
@@ -65,34 +62,47 @@ ipcMain.handle('ayarlari-kaydet', (e, data) => { setConfig(data); return true; }
 ipcMain.handle('klasor-sec', async () => {
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   if (result.canceled) return { basarili: false, iptal: true };
-  const secilenYol = result.filePaths[0];
-  if (path.basename(secilenYol) !== 'DYS ARŞİV') return { basarili: false, mesaj: "Lütfen 'DYS ARŞİV' klasörünü seçin!" };
-  setConfig({ arsivYolu: secilenYol });
-  initDB(secilenYol);
-  return { basarili: true, yol: secilenYol };
+  setConfig({ arsivYolu: result.filePaths[0] });
+  initDB(result.filePaths[0]);
+  return { basarili: true, yol: result.filePaths[0] };
 });
 
+// AI - Tesseract OCR İşlemi
+ipcMain.handle('pdf-metin-cikar-ocr', async (e, buffer) => {
+  try {
+    // 1. PDF sayfalarını yüksek çözünürlüklü resimlere dönüştür
+    const pdfArray = await pdf2img.convert(Buffer.from(buffer), { width: 1200 });
+    let fullText = "";
+    
+    // 2. Yapay zeka motorunu Türkçe dil paketiyle başlat
+    const worker = await createWorker('tur');
+    
+    // 3. Her sayfayı tek tek tara ve önyüze durum bildir (Progress)
+    for (let i = 0; i < pdfArray.length; i++) {
+      e.sender.send('ocr-progress', { sayfa: i + 1, toplam: pdfArray.length });
+      const ret = await worker.recognize(Buffer.from(pdfArray[i]));
+      fullText += ret.data.text + "\n\n";
+    }
+    
+    await worker.terminate();
+    return { basarili: true, metin: fullText };
+  } catch (err) {
+    return { basarili: false, mesaj: err.message };
+  }
+});
+
+// Veritabanı işlemleri (Değişmedi, kısaltıldı)
 ipcMain.handle('kategorileri-getir', () => new Promise(res => db ? db.all(`SELECT ad FROM kategoriler ORDER BY ad ASC`, [], (err, rows) => res(err ? [] : rows.map(r => r.ad))) : res([])));
 ipcMain.handle('kategori-ekle', async (e, ad) => new Promise(res => db.run(`INSERT INTO kategoriler (ad) VALUES (?)`, [ad], err => res({ basarili: !err, mesaj: err?.message }))));
 ipcMain.handle('kategori-sil', async (e, ad) => new Promise(res => db.run(`DELETE FROM kategoriler WHERE ad = ?`, [ad], err => res({ basarili: !err, mesaj: err?.message }))));
 ipcMain.handle('kategori-duzenle', async (e, { eskiAd, yeniAd }) => {
   try {
     const evraklar = await new Promise((res, rej) => db.all(`SELECT id, dosya_yolu FROM evraklar WHERE kategori = ?`, [eskiAd], (err, rows) => err ? rej(err) : res(rows)));
-    fs.readdirSync(aktifArsivYolu).forEach(yil => {
-      if (yil.length === 4 && fs.existsSync(path.join(aktifArsivYolu, yil, eskiAd))) fs.renameSync(path.join(aktifArsivYolu, yil, eskiAd), path.join(aktifArsivYolu, yil, yeniAd));
-    });
+    fs.readdirSync(aktifArsivYolu).forEach(yil => { if (yil.length === 4 && fs.existsSync(path.join(aktifArsivYolu, yil, eskiAd))) fs.renameSync(path.join(aktifArsivYolu, yil, eskiAd), path.join(aktifArsivYolu, yil, yeniAd)); });
     evraklar.forEach(evrak => db.run(`UPDATE evraklar SET kategori = ?, dosya_yolu = ? WHERE id = ?`, [yeniAd, evrak.dosya_yolu.replace(`\\${eskiAd}\\`, `\\${yeniAd}\\`), evrak.id]));
     db.run(`UPDATE kategoriler SET ad = ? WHERE ad = ?`, [yeniAd, eskiAd]);
     return { basarili: true };
-  } catch (err) { return { basarili: false, mesaj: err.code === 'EBUSY' ? "PDF açık. Kapatıp deneyin." : err.message }; }
-});
-
-// PDF METİN ÇIKARIMA (OCR/PARSE) İŞLEMİ
-ipcMain.handle('pdf-metin-cikar', async (e, buffer) => {
-  try {
-    const data = await pdfParse(Buffer.from(buffer));
-    return { basarili: true, metin: data.text };
-  } catch (err) { return { basarili: false, mesaj: "Okunamadı" }; }
+  } catch (err) { return { basarili: false }; }
 });
 
 ipcMain.handle('evrak-kaydet', async (e, data) => {
@@ -118,7 +128,6 @@ ipcMain.handle('evrak-guncelle', async (e, data) => {
       yeniYol = path.join(kategoriKlasoru, `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`);
       if (fs.existsSync(eski.dosya_yolu)) fs.renameSync(eski.dosya_yolu, yeniYol);
     }
-    // Düzenlemede PDF değişmez, sadece yazı alanları güncellenir
     return new Promise((res, rej) => db.run(`UPDATE evraklar SET evrak_sayisi=?, evrak_tarihi=?, evrak_konusu=?, kategori=?, kisa_aciklama=?, dosya_yolu=? WHERE id=?`, 
       [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, data.evrakAciklama, yeniYol, data.id], err => err ? rej(err.message) : res({ basarili: true })));
   } catch (err) { return { basarili: false, mesaj: err.code === 'EBUSY' ? "Dosya kullanımda!" : err.message }; }

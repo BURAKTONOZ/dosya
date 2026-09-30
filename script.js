@@ -28,32 +28,36 @@ async function yukle() {
   tumEvraklar = await window.api.evrakleriGetir();
   aktifKategoriler = await window.api.kategorileriGetir();
   agacYapisiniCiz();
+  yillariCiz();
   aramaYap();
+}
+
+function yillariCiz() {
+  const container = document.getElementById('year-filters');
+  container.innerHTML = `<div class="year-btn ${!seciliYil ? 'active' : ''}" onclick="filtreUygula(null, null)">Tümü</div>`;
+  const yillar = [...new Set(tumEvraklar.map(e => e.evrak_tarihi.split('-')[0]))].sort().reverse();
+  yillar.forEach(yil => { if(yil) container.innerHTML += `<div class="year-btn ${seciliYil===yil ? 'active' : ''}" onclick="filtreUygula('${yil}', null)">${yil}</div>`; });
 }
 
 function agacYapisiniCiz() {
   const tree = document.getElementById('tree-menu');
-  tree.innerHTML = `<div class="tree-item"><div class="tree-year ${!seciliYil ? 'active' : ''}" onclick="filtreUygula(null, null)">Tüm Arşiv</div></div>`;
+  tree.innerHTML = `<div class="tree-item"><div class="tree-year ${!seciliYil ? 'active' : ''}" onclick="filtreUygula(null, null)">📁 Tüm Arşiv</div></div>`;
   const yillar = [...new Set(tumEvraklar.map(e => e.evrak_tarihi.split('-')[0]))].sort().reverse();
   yillar.forEach(yil => {
     if(!yil) return;
     const buYilinKategorileri = [...new Set(tumEvraklar.filter(e => e.evrak_tarihi.startsWith(yil)).map(e => e.kategori))].sort();
-    let subHtml = buYilinKategorileri.map(kat => `<div class="tree-cat ${seciliYil===yil && seciliKategori===kat ? 'active' : ''}" onclick="filtreUygula('${yil}', '${kat}', event)">📁 ${kat}</div>`).join('');
+    let subHtml = buYilinKategorileri.map(kat => `<div class="tree-cat ${seciliYil===yil && seciliKategori===kat ? 'active' : ''}" onclick="filtreUygula('${yil}', '${kat}', event)">📄 ${kat}</div>`).join('');
     const isOpen = seciliYil === yil ? 'open' : '';
     tree.innerHTML += `<div class="tree-item ${isOpen}"><div class="tree-year ${seciliYil===yil && !seciliKategori ? 'active' : ''}" onclick="toggleTree(this, '${yil}')">📅 ${yil}</div><div class="tree-sub">${subHtml}</div></div>`;
   });
 }
 
-window.toggleTree = function(el, yil) {
-  el.parentElement.classList.toggle('open');
-  filtreUygula(yil, null); 
-}
+window.toggleTree = function(el, yil) { el.parentElement.classList.toggle('open'); filtreUygula(yil, null); }
 
 window.filtreUygula = function(yil, kategori, event) {
   if(event) event.stopPropagation();
   seciliYil = yil; seciliKategori = kategori;
-  agacYapisiniCiz(); 
-  aramaYap();
+  agacYapisiniCiz(); yillariCiz(); aramaYap();
 }
 
 document.getElementById('arama-kutusu').addEventListener('input', aramaYap);
@@ -69,45 +73,51 @@ function aramaYap() {
 function kartlariCiz(liste) {
   const container = document.getElementById('cards-container');
   container.innerHTML = '';
-  if (liste.length === 0) return container.innerHTML = '<p style="color:var(--text-muted);">Evrak bulunamadı.</p>';
+  if (liste.length === 0) return container.innerHTML = '<p style="color:var(--text-muted); text-align:center; margin-top:20px;">Evrak bulunamadı.</p>';
   
   liste.forEach(evrak => {
     const card = document.createElement('div');
     card.className = `card ${seciliKartId === evrak.id ? 'active' : ''}`;
-    card.onclick = () => {
-      if(seciliKartId === evrak.id) { panelKapat(); } 
-      else { seciliKartId = evrak.id; belgeGoster(evrak.dosya_yolu, evrak.evrak_konusu); aramaYap(); }
-    };
+    card.onclick = () => { if(seciliKartId === evrak.id) { panelKapat(); } else { seciliKartId = evrak.id; belgeGoster(evrak.dosya_yolu, evrak.evrak_konusu); aramaYap(); } };
     
-    // KART ÜZERİNDE GİZLİ ÇIKAN BUTONLAR (Tıklamayı içeriye aktarmaz e.stopPropagation)
+    // Klasör renklerini kategoriye göre dinamik yapmak (Görseldeki gibi)
+    const renkler = ['#ff4757', '#2ed573', '#1e90ff', '#ffa502', '#9b59b6'];
+    const rRenk = renkler[evrak.id % renkler.length];
+
     card.innerHTML = `
+      <div class="card-icon" style="background:${rRenk}33; color:${rRenk};">📂</div>
+      <div class="card-content">
+        <div class="card-konu">${evrak.evrak_konusu}</div>
+        <div class="card-detay">
+          <span>No: ${evrak.evrak_sayisi}</span>
+          <span>•</span>
+          <span>${formatTR(evrak.evrak_tarihi)}</span>
+        </div>
+      </div>
+      <div class="card-year-badge">${evrak.evrak_tarihi.split('-')[0]} ❯</div>
       <div class="card-hover-menu">
         <button class="card-btn" onclick="event.stopPropagation(); modalAc('duzenle', ${evrak.id})" title="Düzenle">✏️</button>
-        <button class="card-btn" onclick="event.stopPropagation(); disaAktar(${evrak.id})" title="Farklı Kaydet">💾</button>
         <button class="card-btn danger" onclick="event.stopPropagation(); evrakSil(${evrak.id})" title="Sil">🗑️</button>
       </div>
-      <div class="card-header"><span class="card-tarih">${formatTR(evrak.evrak_tarihi)}</span><span class="card-sayi">Sayı: ${evrak.evrak_sayisi}</span></div>
-      <div class="card-kategori">${evrak.kategori}</div>
-      <div class="card-konu">${evrak.evrak_konusu}</div>
-      <div class="card-aciklama">${evrak.kisa_aciklama}</div>
     `;
     container.appendChild(card);
   });
 }
 
 window.evrakSil = function(id) {
-  ozelOnay("Bu evrakı kalıcı olarak silmek istediğinize emin misiniz?", async () => {
+  ozelOnay("Evrakı kalıcı olarak silmek istediğinize emin misiniz?", async () => {
     const snc = await window.api.evrakSil(id);
     if(snc.basarili) { if(seciliKartId === id) panelKapat(); await yukle(); } else ozelUyari(snc.mesaj); 
   }); 
 };
 
-window.disaAktar = async function(id) {
-  const evrak = tumEvraklar.find(e => e.id === id);
-  if(!evrak) return;
+// BUTON GİZLİ TETİKLEYİCİSİ (HTML içindeki gizli butondan çağrılır)
+document.getElementById('ctx-disa-aktar').onclick = async () => {
+  if(!seciliKartId) return;
+  const evrak = tumEvraklar.find(e => e.id === seciliKartId);
   const isim = `${evrak.evrak_sayisi}_${evrak.evrak_konusu}.pdf`.replace(/[/\\?%*:|"<>]/g, '-');
   const snc = await window.api.pdfDisaAktar(evrak.dosya_yolu, isim);
-  if(snc.basarili) ozelUyari("PDF başarıyla masaüstüne/seçilen yere kaydedildi!");
+  if(snc.basarili) ozelUyari("PDF başarıyla kaydedildi!");
 };
 
 async function belgeGoster(yol, konu) {
@@ -118,13 +128,12 @@ async function belgeGoster(yol, konu) {
     const byteNumbers = new Array(byteCharacters.length);
     for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
     document.getElementById('pdf-frame-view').src = URL.createObjectURL(new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' }));
-    document.getElementById('pdf-panel').classList.add('open');
-    document.body.classList.add('pdf-open'); 
+    document.getElementById('pdf-panel').classList.remove('hidden');
   } else ozelUyari("PDF Açılamadı: " + sonuc.mesaj);
 }
-window.panelKapat = function() { seciliKartId = null; document.getElementById('pdf-panel').classList.remove('open'); document.body.classList.remove('pdf-open'); setTimeout(()=> document.getElementById('pdf-frame-view').src="", 400); aramaYap(); }
+window.panelKapat = function() { seciliKartId = null; document.getElementById('pdf-panel').classList.add('hidden'); setTimeout(()=> document.getElementById('pdf-frame-view').src="", 400); aramaYap(); }
 
-// TEMİZ SÜRÜKLE BIRAK ALANI
+// SÜRÜKLE BIRAK
 const dragZone = document.getElementById('drag-zone');
 const pdfInput = document.getElementById('pdf-file');
 const pdfInputEdit = document.getElementById('pdf-file-edit');
@@ -138,10 +147,9 @@ pdfInput.onchange = function() { if (this.files[0]) dosyaIsle(this.files[0]); };
 pdfInputEdit.onchange = function() { if (this.files[0]) dosyaIsle(this.files[0]); };
 
 function dosyaIsle(file) {
-  if(file.type !== "application/pdf") return ozelUyari("Lütfen sadece PDF dosyası seçin.");
+  if(file.type !== "application/pdf") return ozelUyari("Sadece PDF seçin.");
   currentFile = file;
-  dragZone.style.display = 'none'; // Sürükle alanı gizlenir
-  preview.style.display = 'block'; // Sadece PDF görünür
+  dragZone.style.display = 'none'; preview.style.display = 'block';
   preview.src = URL.createObjectURL(file);
   document.getElementById('pdf-upload-title').innerText = file.name;
   document.getElementById('btn-pdf-degistir').style.display = 'inline-block';
@@ -149,8 +157,8 @@ function dosyaIsle(file) {
 
 window.modalAc = function(mod, id = null) {
   modalModu = mod; currentFile = null;
-  document.getElementById('modal-baslik').innerText = mod === 'yeni' ? "Yeni Evrak Arşivle" : "Evrak Düzenle";
-  document.getElementById('kaydet-btn').innerText = mod === 'yeni' ? "Arşive Kaydet" : "Güncelle";
+  document.getElementById('modal-baslik').innerText = mod === 'yeni' ? "Yeni Evrak" : "Evrak Düzenle";
+  document.getElementById('kaydet-btn').innerText = mod === 'yeni' ? "Kaydet" : "Güncelle";
   document.getElementById('evrak-kategori').innerHTML = aktifKategoriler.map(k => `<option value="${k}">${k}</option>`).join('');
   
   if(mod === 'yeni') {
@@ -193,7 +201,7 @@ document.getElementById('kaydet-btn').onclick = async () => {
   const aciklama = document.getElementById('evrak-aciklama').value;
 
   if (!kategori || !sayi || !tarih || !konu) return ozelUyari("Eksik alanları doldurun.");
-  if (modalModu === 'yeni' && !currentFile) return ozelUyari("Yeni kayıtta PDF yüklemek zorunludur.");
+  if (modalModu === 'yeni' && !currentFile) return ozelUyari("PDF yüklemek zorunludur.");
 
   document.getElementById('kaydet-btn').innerText = "İşleniyor...";
   const data = { id, kategori, evrakSayisi: sayi, evrakTarihi: tarih, evrakKonusu: konu, evrakAciklama: aciklama, pdfBuffer: currentFile ? await currentFile.arrayBuffer() : null };
@@ -203,18 +211,13 @@ document.getElementById('kaydet-btn').onclick = async () => {
 };
 
 window.ayarlarModalAc = async function() {
-  document.getElementById('guncel-yol').innerText = "Şu anki yol: " + ((await window.api.ayarlariGetir()).arsivYolu || "Seçilmedi");
+  document.getElementById('guncel-yol').innerText = "Yol: " + ((await window.api.ayarlariGetir()).arsivYolu || "Seçilmedi");
   document.getElementById('setup-kapat-btn').style.display = 'block';
-  kategoriListesiniCiz();
-  document.getElementById('setup-overlay').classList.add('show');
+  kategoriListesiniCiz(); document.getElementById('setup-overlay').classList.add('show');
 }
 window.ayarlarModalKapat = () => document.getElementById('setup-overlay').classList.remove('show');
 
-function kategoriListesiniCiz() {
-  document.getElementById('kategori-listesi').innerHTML = aktifKategoriler.map(k => `
-    <div class="kategori-item"><input type="text" value="${k}" id="kat-input-${k}"><div class="kategori-item-actions"><button class="btn-action" onclick="kategoriGuncelle('${k}')">Kaydet</button><button class="btn-action btn-delete" onclick="kategoriSil('${k}')">Sil</button></div></div>
-  `).join('');
-}
+function kategoriListesiniCiz() { document.getElementById('kategori-listesi').innerHTML = aktifKategoriler.map(k => `<div class="kategori-item"><input type="text" value="${k}" id="kat-input-${k}"><div class="kategori-item-actions"><button class="btn-action" onclick="kategoriGuncelle('${k}')">Kaydet</button><button class="btn-action btn-delete" onclick="kategoriSil('${k}')">Sil</button></div></div>`).join(''); }
 
 window.kategoriEkle = async function() {
   const yeni = document.getElementById('yeni-kategori-input').value.trim();
@@ -222,10 +225,10 @@ window.kategoriEkle = async function() {
   const sonuc = await window.api.kategoriEkle(yeni);
   if(sonuc.basarili) { aktifKategoriler.push(yeni); document.getElementById('yeni-kategori-input').value = ""; kategoriListesiniCiz(); } else ozelUyari("Hata: " + sonuc.mesaj);
 }
-window.kategoriSil = function(kategori) { ozelOnay(`"${kategori}" kategorisini silmek istediğinize emin misiniz?`, async () => { const snc = await window.api.kategoriSil(kategori); if(snc.basarili) { aktifKategoriler = aktifKategoriler.filter(k => k !== kategori); kategoriListesiniCiz(); await yukle(); } else ozelUyari("Hata: " + snc.mesaj); }); }
+window.kategoriSil = function(kategori) { ozelOnay(`"${kategori}" silinsin mi?`, async () => { const snc = await window.api.kategoriSil(kategori); if(snc.basarili) { aktifKategoriler = aktifKategoriler.filter(k => k !== kategori); kategoriListesiniCiz(); await yukle(); } else ozelUyari(snc.mesaj); }); }
 window.kategoriGuncelle = async function(eskiAd) {
   const yeniAd = document.getElementById(`kat-input-${eskiAd}`).value.trim();
   if(!yeniAd || eskiAd === yeniAd) return;
   const sonuc = await window.api.kategoriDuzenle({ eskiAd, yeniAd });
-  if(sonuc.basarili) { aktifKategoriler = await window.api.kategorileriGetir(); kategoriListesiniCiz(); await yukle(); ozelUyari("Kategori başarıyla güncellendi."); } else ozelUyari(sonuc.mesaj);
+  if(sonuc.basarili) { aktifKategoriler = await window.api.kategorileriGetir(); kategoriListesiniCiz(); await yukle(); ozelUyari("Kategori güncellendi."); } else ozelUyari(sonuc.mesaj);
 }

@@ -30,8 +30,13 @@ function initDB(yol) {
 function createWindows() {
   splashWindow = new BrowserWindow({ width: 500, height: 350, transparent: true, frame: false, alwaysOnTop: true, icon: path.join(__dirname, 'icon.ico') });
   splashWindow.loadFile('splash.html');
+  
   mainWindow = new BrowserWindow({
-    width: 1400, height: 850, frame: false, show: false, backgroundColor: '#eef2f5', icon: path.join(__dirname, 'icon.ico'),
+    width: 1500, height: 900, 
+    frame: false, show: false, 
+    transparent: true, // Arka planın görünmesi için
+    backgroundColor: '#00000000',
+    icon: path.join(__dirname, 'icon.ico'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
   mainWindow.loadFile('index.html');

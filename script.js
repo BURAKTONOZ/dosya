@@ -36,29 +36,52 @@ async function yukle() {
 
 function agacYapisiniCiz() {
   const tree = document.getElementById('tree-menu');
-  tree.innerHTML = `<div class="tree-item"><div class="tree-year ${!seciliYil ? 'active' : ''}" onclick="filtreUygula(null, null)">📁 Tüm Arşiv</div></div>`;
+  tree.innerHTML = ``; // Tüm arşivi başlık yapıyor, butona gerek yok
+  
   const yillar = [...new Set(tumEvraklar.map(e => e.evrak_tarihi.split('-')[0]))].sort().reverse();
   yillar.forEach(yil => {
     if(!yil) return;
     const buYilinKategorileri = [...new Set(tumEvraklar.filter(e => e.evrak_tarihi.startsWith(yil)).map(e => e.kategori))].sort();
-    let subHtml = buYilinKategorileri.map(kat => `<div class="tree-cat ${seciliYil===yil && seciliKategori===kat ? 'active' : ''}" onclick="filtreUygula('${yil}', '${kat}', event)">📄 ${kat}</div>`).join('');
+    
+    // Alt Kategori Butonları
+    let subHtml = buYilinKategorileri.map(kat => `
+      <div class="tree-cat-btn ${seciliYil===yil && seciliKategori===kat ? 'active' : ''}" onclick="kategoriTikla('${yil}', '${kat}', event)">
+        📄 ${kat}
+      </div>`).join('');
+      
     const isOpen = seciliYil === yil ? 'open' : '';
-    tree.innerHTML += `<div class="tree-item ${isOpen}"><div class="tree-year ${seciliYil===yil && !seciliKategori ? 'active' : ''}" onclick="toggleTree(this, '${yil}')">📅 ${yil}</div><div class="tree-sub">${subHtml}</div></div>`;
+    
+    tree.innerHTML += `
+      <div class="tree-item ${isOpen}">
+        <div class="tree-year-btn" onclick="yilTikla('${yil}')">
+          <span>📅 ${yil}</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="tree-sub">${subHtml}</div>
+      </div>
+    `;
   });
 }
 
-window.toggleTree = function(el, yil) {
-  el.parentElement.classList.toggle('open');
-  filtreUygula(yil, null); 
+window.yilTikla = function(yil) {
+  // Eğer tıklanan yıl zaten açıksa (ve kategori seçilmemişse), Kapat ve Arşive dön
+  if (seciliYil === yil && seciliKategori === null) {
+    seciliYil = null;
+    document.getElementById('aktif-baslik').innerText = "Tüm Arşiv";
+  } else {
+    // Aç veya başka yıla geç
+    seciliYil = yil;
+    seciliKategori = null;
+    document.getElementById('aktif-baslik').innerText = `${yil} Yılı Evrakları`;
+  }
+  agacYapisiniCiz();
+  aramaYap();
 }
 
-window.filtreUygula = function(yil, kategori, event) {
-  if(event) event.stopPropagation();
+window.kategoriTikla = function(yil, kategori, event) {
+  event.stopPropagation();
   seciliYil = yil; seciliKategori = kategori;
-  
-  let baslik = yil ? (kategori ? `${yil} / ${kategori}` : `${yil} Evrakları`) : "Tüm Arşiv";
-  document.getElementById('aktif-baslik').innerText = baslik;
-  
+  document.getElementById('aktif-baslik').innerText = `${yil} / ${kategori}`;
   agacYapisiniCiz(); 
   aramaYap();
 }
@@ -76,7 +99,7 @@ function aramaYap() {
 function kartlariCiz(liste) {
   const container = document.getElementById('cards-container');
   container.innerHTML = '';
-  if (liste.length === 0) return container.innerHTML = '<p style="color:var(--text-muted); text-align:center; margin-top:20px;">Evrak bulunamadı.</p>';
+  if (liste.length === 0) return container.innerHTML = '<p style="color:var(--text-muted); text-align:center; margin-top:20px;">Kayıt bulunamadı.</p>';
   
   liste.forEach(evrak => {
     const card = document.createElement('div');
@@ -140,7 +163,6 @@ window.panelKapat = function() {
   aramaYap(); 
 }
 
-// ODAK MODU (TAM EKRAN PDF)
 window.odakModuGecis = function() {
   const btn = document.getElementById('focus-btn');
   document.body.classList.toggle('focus-mode');

@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('api', {
   close: () => ipcRenderer.send('window-close'),
   klasorSec: () => ipcRenderer.invoke('klasor-sec'),
   ayarlariGetir: () => ipcRenderer.invoke('ayarlari-getir'),
+  ayarlariKaydet: (data) => ipcRenderer.invoke('ayarlari-kaydet', data),
   kategorileriGetir: () => ipcRenderer.invoke('kategorileri-getir'),
   kategoriEkle: (ad) => ipcRenderer.invoke('kategori-ekle', ad),
   kategoriSil: (ad) => ipcRenderer.invoke('kategori-sil', ad),
@@ -14,5 +15,6 @@ contextBridge.exposeInMainWorld('api', {
   evrakSil: (id) => ipcRenderer.invoke('evrak-sil', id),
   evrakleriGetir: () => ipcRenderer.invoke('evrakleri-getir'),
   pdfOku: (yol) => ipcRenderer.invoke('pdf-oku', yol),
-  pdfDisaAktar: (yol, isim) => ipcRenderer.invoke('pdf-disa-aktar', yol, isim)
+  pdfDisaAktar: (yol, isim) => ipcRenderer.invoke('pdf-disa-aktar', yol, isim),
+  pdfMetinCikar: (buffer) => ipcRenderer.invoke('pdf-metin-cikar', buffer)
 });

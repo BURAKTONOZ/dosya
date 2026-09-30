@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
+const pdfParse = require('pdf-parse'); // PDF Metin Okuyucu
 
 const userDataPath = app.getPath('userData');
 const configPath = path.join(userDataPath, 'config.json');
@@ -10,7 +11,7 @@ let db = null, aktifArsivYolu = null, mainWindow, splashWindow;
 
 function getConfig() {
   if (fs.existsSync(configPath)) return JSON.parse(fs.readFileSync(configPath));
-  return { arsivYolu: null };
+  return { arsivYolu: null, tema: 'dark' };
 }
 function setConfig(data) { fs.writeFileSync(configPath, JSON.stringify({ ...getConfig(), ...data })); }
 
@@ -19,7 +20,13 @@ function initDB(yol) {
   db = new sqlite3.Database(path.join(yol, 'ndys_veritabani.db'), (err) => {
     if (!err) db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
   });
-  db.run(`CREATE TABLE IF NOT EXISTS evraklar (id INTEGER PRIMARY KEY AUTOINCREMENT, evrak_sayisi TEXT, evrak_tarihi TEXT, evrak_konusu TEXT, kategori TEXT, kisa_aciklama TEXT, dosya_yolu TEXT, kayit_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+  
+  // okunan_metin sütunu ile tablo oluştur
+  db.run(`CREATE TABLE IF NOT EXISTS evraklar (id INTEGER PRIMARY KEY AUTOINCREMENT, evrak_sayisi TEXT, evrak_tarihi TEXT, evrak_konusu TEXT, kategori TEXT, kisa_aciklama TEXT, dosya_yolu TEXT, okunan_metin TEXT, kayit_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP)`, () => {
+    // Eski veritabanı varsa ve okunan_metin sütunu yoksa ekle
+    db.run(`ALTER TABLE evraklar ADD COLUMN okunan_metin TEXT`, () => {}); 
+  });
+  
   db.run(`CREATE TABLE IF NOT EXISTS kategoriler (id INTEGER PRIMARY KEY AUTOINCREMENT, ad TEXT UNIQUE)`, () => {
     db.get(`SELECT COUNT(*) as count FROM kategoriler`, (err, row) => {
       if (row && row.count === 0) ["Mahkeme Yazıları", "İsimlendirme Yazıları", "Genel Vatandaş Dilekçeleri"].forEach(k => db.run(`INSERT INTO kategoriler (ad) VALUES (?)`, [k]));
@@ -34,8 +41,7 @@ function createWindows() {
   mainWindow = new BrowserWindow({
     width: 1500, height: 900, 
     frame: false, show: false, 
-    transparent: true, 
-    hasShadow: false, 
+    transparent: true, hasShadow: false, 
     icon: path.join(__dirname, 'icon.ico'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
@@ -55,11 +61,12 @@ ipcMain.on('window-maximize', () => mainWindow.isMaximized() ? mainWindow.restor
 ipcMain.on('window-close', () => mainWindow.close());
 
 ipcMain.handle('ayarlari-getir', () => getConfig());
+ipcMain.handle('ayarlari-kaydet', (e, data) => { setConfig(data); return true; });
 ipcMain.handle('klasor-sec', async () => {
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   if (result.canceled) return { basarili: false, iptal: true };
   const secilenYol = result.filePaths[0];
-  if (path.basename(secilenYol) !== 'DYS ARŞİV') return { basarili: false, mesaj: "Lütfen 'DYS ARŞİV' adındaki klasörü seçin!" };
+  if (path.basename(secilenYol) !== 'DYS ARŞİV') return { basarili: false, mesaj: "Lütfen 'DYS ARŞİV' klasörünü seçin!" };
   setConfig({ arsivYolu: secilenYol });
   initDB(secilenYol);
   return { basarili: true, yol: secilenYol };
@@ -80,6 +87,14 @@ ipcMain.handle('kategori-duzenle', async (e, { eskiAd, yeniAd }) => {
   } catch (err) { return { basarili: false, mesaj: err.code === 'EBUSY' ? "PDF açık. Kapatıp deneyin." : err.message }; }
 });
 
+// PDF METİN ÇIKARIMA (OCR/PARSE) İŞLEMİ
+ipcMain.handle('pdf-metin-cikar', async (e, buffer) => {
+  try {
+    const data = await pdfParse(Buffer.from(buffer));
+    return { basarili: true, metin: data.text };
+  } catch (err) { return { basarili: false, mesaj: "Okunamadı" }; }
+});
+
 ipcMain.handle('evrak-kaydet', async (e, data) => {
   try {
     const yil = data.evrakTarihi.split('-')[0], kategoriKlasoru = path.join(aktifArsivYolu, yil, data.kategori);
@@ -87,8 +102,8 @@ ipcMain.handle('evrak-kaydet', async (e, data) => {
     if (!fs.existsSync(kategoriKlasoru)) fs.mkdirSync(kategoriKlasoru);
     const yeniPdfYolu = path.join(kategoriKlasoru, `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`);
     fs.writeFileSync(yeniPdfYolu, Buffer.from(data.pdfBuffer));
-    return new Promise((res, rej) => db.run(`INSERT INTO evraklar (evrak_sayisi, evrak_tarihi, evrak_konusu, kategori, kisa_aciklama, dosya_yolu) VALUES (?, ?, ?, ?, ?, ?)`, 
-      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, data.evrakAciklama, yeniPdfYolu], err => err ? rej(err.message) : res({ basarili: true })));
+    return new Promise((res, rej) => db.run(`INSERT INTO evraklar (evrak_sayisi, evrak_tarihi, evrak_konusu, kategori, kisa_aciklama, dosya_yolu, okunan_metin) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
+      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, data.evrakAciklama, yeniPdfYolu, data.okunanMetin], err => err ? rej(err.message) : res({ basarili: true })));
   } catch (err) { return { basarili: false, mesaj: err.message }; }
 });
 
@@ -103,7 +118,7 @@ ipcMain.handle('evrak-guncelle', async (e, data) => {
       yeniYol = path.join(kategoriKlasoru, `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`);
       if (fs.existsSync(eski.dosya_yolu)) fs.renameSync(eski.dosya_yolu, yeniYol);
     }
-    if (data.pdfBuffer) fs.writeFileSync(yeniYol, Buffer.from(data.pdfBuffer));
+    // Düzenlemede PDF değişmez, sadece yazı alanları güncellenir
     return new Promise((res, rej) => db.run(`UPDATE evraklar SET evrak_sayisi=?, evrak_tarihi=?, evrak_konusu=?, kategori=?, kisa_aciklama=?, dosya_yolu=? WHERE id=?`, 
       [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, data.evrakAciklama, yeniYol, data.id], err => err ? rej(err.message) : res({ basarili: true })));
   } catch (err) { return { basarili: false, mesaj: err.code === 'EBUSY' ? "Dosya kullanımda!" : err.message }; }

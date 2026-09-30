@@ -1,4 +1,4 @@
-// PDF.js Ayarları (Önyüz için zorunlu)
+// PDF.js Ayarları (Ön yüz PDF-Resim Çeviricisi)
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 let tumEvraklar = [], aktifKategoriler = [], seciliYil = null, seciliKategori = null;
@@ -8,7 +8,7 @@ function ozelUyari(mesaj) { document.getElementById('alert-message').innerText =
 function ozelOnay(mesaj, cb) { document.getElementById('confirm-message').innerText = mesaj; document.getElementById('confirm-yes').onclick = () => { document.getElementById('custom-confirm').classList.remove('show'); cb(); }; document.getElementById('custom-confirm').classList.add('show'); }
 const formatTR = (t) => t ? t.split('-').reverse().join('.') : '';
 
-// TEMA (GECE/GÜNDÜZ) YÖNETİMİ
+// TEMA
 async function temaAyarla(tema) {
   if(tema === 'light') { document.body.classList.remove('dark-mode'); document.body.classList.add('light-mode'); document.getElementById('theme-toggle').innerText = '🌙'; }
   else { document.body.classList.remove('light-mode'); document.body.classList.add('dark-mode'); document.getElementById('theme-toggle').innerText = '☀️'; }
@@ -167,7 +167,7 @@ async function dosyaIsle(file) {
     const totalPages = pdf.numPages;
     let fullText = "";
     
-    // Tesseract Motorunu Başlat (Önyüzde İlerleme Takibi)
+    // Tesseract Worker'ı Doğrudan Tarayıcıda Başlat
     const worker = await Tesseract.createWorker('tur', 1, {
       logger: m => {
         if (m.status === 'recognizing text') {
@@ -177,12 +177,12 @@ async function dosyaIsle(file) {
       }
     });
     
-    // PDF'i HTML5 Canvas'a çiz ve Tesseract ile oku
+    // Her sayfayı gizli bir tuvale (Canvas) çizip Yapay Zekaya (Tesseract) besle
     for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
       document.getElementById('ocr-status-text').innerText = `🔍 Taranıyor: Sayfa ${pageNum} / ${totalPages}`;
       
       const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 2.0 }); // Netlik için ölçek
+      const viewport = page.getViewport({ scale: 2.0 }); // Yazıların net okunması için 2x ölçek
       
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');

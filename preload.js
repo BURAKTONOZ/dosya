@@ -15,6 +15,5 @@ contextBridge.exposeInMainWorld('api', {
   evrakSil: (id) => ipcRenderer.invoke('evrak-sil', id),
   evrakleriGetir: () => ipcRenderer.invoke('evrakleri-getir'),
   pdfOku: (yol) => ipcRenderer.invoke('pdf-oku', yol),
-  pdfDisaAktar: (yol, isim) => ipcRenderer.invoke('pdf-disa-aktar', yol, isim),
-  pdfYazdirHarici: (yol) => ipcRenderer.send('pdf-yazdir-harici', yol)
+  pdfDisaAktar: (yol, isim) => ipcRenderer.invoke('pdf-disa-aktar', yol, isim)
 });

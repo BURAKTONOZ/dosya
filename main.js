@@ -3,10 +3,6 @@ const path = require('path');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 
-// OCR Paketleri
-const pdf2img = require('pdf-img-convert');
-const { createWorker } = require('tesseract.js');
-
 const userDataPath = app.getPath('userData');
 const configPath = path.join(userDataPath, 'config.json');
 
@@ -67,31 +63,6 @@ ipcMain.handle('klasor-sec', async () => {
   return { basarili: true, yol: result.filePaths[0] };
 });
 
-// AI - Tesseract OCR İşlemi
-ipcMain.handle('pdf-metin-cikar-ocr', async (e, buffer) => {
-  try {
-    // 1. PDF sayfalarını yüksek çözünürlüklü resimlere dönüştür
-    const pdfArray = await pdf2img.convert(Buffer.from(buffer), { width: 1200 });
-    let fullText = "";
-    
-    // 2. Yapay zeka motorunu Türkçe dil paketiyle başlat
-    const worker = await createWorker('tur');
-    
-    // 3. Her sayfayı tek tek tara ve önyüze durum bildir (Progress)
-    for (let i = 0; i < pdfArray.length; i++) {
-      e.sender.send('ocr-progress', { sayfa: i + 1, toplam: pdfArray.length });
-      const ret = await worker.recognize(Buffer.from(pdfArray[i]));
-      fullText += ret.data.text + "\n\n";
-    }
-    
-    await worker.terminate();
-    return { basarili: true, metin: fullText };
-  } catch (err) {
-    return { basarili: false, mesaj: err.message };
-  }
-});
-
-// Veritabanı işlemleri (Değişmedi, kısaltıldı)
 ipcMain.handle('kategorileri-getir', () => new Promise(res => db ? db.all(`SELECT ad FROM kategoriler ORDER BY ad ASC`, [], (err, rows) => res(err ? [] : rows.map(r => r.ad))) : res([])));
 ipcMain.handle('kategori-ekle', async (e, ad) => new Promise(res => db.run(`INSERT INTO kategoriler (ad) VALUES (?)`, [ad], err => res({ basarili: !err, mesaj: err?.message }))));
 ipcMain.handle('kategori-sil', async (e, ad) => new Promise(res => db.run(`DELETE FROM kategoriler WHERE ad = ?`, [ad], err => res({ basarili: !err, mesaj: err?.message }))));

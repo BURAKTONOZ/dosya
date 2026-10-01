@@ -1,5 +1,5 @@
-// GÜNCEL UYGULAMA VERSİYONU (DB İLE KARŞILAŞTIRILACAK)
-const APP_VERSION = "1.0.1";
+// GÜNCEL UYGULAMA VERSİYONU
+const APP_VERSION = "2.0.0";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
@@ -10,7 +10,7 @@ function ozelUyari(mesaj) { document.getElementById('alert-message').innerText =
 function ozelOnay(mesaj, cb) { document.getElementById('confirm-message').innerText = mesaj; document.getElementById('confirm-yes').onclick = () => { document.getElementById('custom-confirm').classList.remove('show'); cb(); }; document.getElementById('custom-confirm').classList.add('show'); }
 const formatTR = (t) => t ? t.split('-').reverse().join('.') : '';
 
-// KLAVYE ASİSTANI (CTRL+F VE OK TUŞLARI İLE SMART SCROLL)
+// KLAVYE ASİSTANI VE SMART SCROLL
 document.addEventListener('keydown', (e) => {
   if (e.ctrlKey && e.key.toLowerCase() === 'f') { e.preventDefault(); document.getElementById('arama-kutusu').focus(); }
   
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const vCheck = await window.api.versiyonKontrol(APP_VERSION);
     if(vCheck.durum === 'eski') {
        document.getElementById('versiyon-alert').classList.add('show');
-       return; // Programı durdur
+       return; 
     }
     await yukle(); 
   }
@@ -103,7 +103,7 @@ window.kategoriTikla = function(yil, kategori, event) {
   agacYapisiniCiz(); aramaYap();
 }
 
-// EVRENSEL ARAMA (TEK KUTU)
+// EVRENSEL ARAMA
 document.getElementById('arama-kutusu').addEventListener('input', aramaYap);
 
 function aramaYap() {
@@ -140,7 +140,6 @@ function kartlariCiz(liste) {
         seciliKartId = evrak.id; 
         belgeGoster(evrak.dosya_yolu, evrak.evrak_konusu); 
         aramaYap(); 
-        // SMART SCROLL: Seçilen kartı yumuşakça ekranın en üstüne (göz hizasına) sabitler
         setTimeout(() => { document.querySelector(`.a4-card.active`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
       } 
     };
@@ -170,7 +169,7 @@ async function belgeGoster(yol, konu) {
   if(snc.basarili) {
     const b = atob(snc.veri); const arr = new Uint8Array(b.length); for(let i=0;i<b.length;i++) arr[i] = b.charCodeAt(i);
     const blobUrl = URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }));
-    document.getElementById('pdf-frame-view').src = blobUrl + '#view=FitH'; // FITH = Genişliğe Sığdır
+    document.getElementById('pdf-frame-view').src = blobUrl + '#view=FitH';
     document.getElementById('pdf-panel').classList.remove('hidden'); document.getElementById('pdf-panel').classList.add('open'); document.body.classList.add('pdf-open'); 
   }
 }
@@ -199,7 +198,6 @@ async function dosyaIsle(file) {
   await ocrTaramasiBaslat(arrayBuffer);
 }
 
-// Eski evraklarda metni yeniden taratmak için
 window.eskiMetniYenidenTara = async function() {
   const btn = document.getElementById('rescan-btn');
   btn.innerText = "⏳ Taranıyor...";
@@ -254,7 +252,7 @@ async function ocrTaramasiBaslat(arrayBuffer) {
     document.getElementById('ocr-animation').style.display = 'none';
     if(fullText.trim() !== "") {
       document.getElementById('evrak-okunan-metin').value = fullText;
-      document.getElementById('ocr-text-container').style.display = 'block'; // Otomatik Göster
+      document.getElementById('ocr-text-container').style.display = 'block'; 
     } else { throw new Error("Boş metin"); }
   } catch (err) {
     document.getElementById('ocr-animation').style.display = 'none';
@@ -279,7 +277,6 @@ window.modalAc = function(mod, id = null) {
     document.getElementById('evrak-tarihi').value = evrak.evrak_tarihi;
     document.getElementById('evrak-konusu').value = evrak.evrak_konusu;
     
-    // Düzenle modunda okunan metni direkt göster ve "Yeniden Tara" butonunu aktif et
     document.getElementById('evrak-okunan-metin').value = evrak.okunan_metin || "";
     document.getElementById('ocr-status-area').style.display = 'block';
     document.getElementById('ocr-text-container').style.display = 'block';

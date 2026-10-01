@@ -25,7 +25,6 @@ function initDB(yol) {
     db.run(`ALTER TABLE evraklar ADD COLUMN okunan_metin TEXT`, () => {}); 
   });
   
-  // Renk Sütunu Eklendi
   db.run(`CREATE TABLE IF NOT EXISTS kategoriler (id INTEGER PRIMARY KEY AUTOINCREMENT, ad TEXT UNIQUE, renk TEXT DEFAULT '#4db8ff')`, () => {
     db.run(`ALTER TABLE kategoriler ADD COLUMN renk TEXT DEFAULT '#4db8ff'`, () => {
       db.get(`SELECT COUNT(*) as count FROM kategoriler`, (err, row) => {

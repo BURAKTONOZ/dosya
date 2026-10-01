@@ -1,4 +1,3 @@
-// GÜNCEL UYGULAMA VERSİYONU
 const APP_VERSION = "2.0.0";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
@@ -52,7 +51,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else { 
     document.getElementById('guncel-yol').innerText = "Yol: " + config.arsivYolu; 
     
-    // VERİTABANI VERSİYON KONTROLÜ
     const vCheck = await window.api.versiyonKontrol(APP_VERSION);
     if(vCheck.durum === 'eski') {
        document.getElementById('versiyon-alert').classList.add('show');
@@ -132,7 +130,7 @@ function kartlariCiz(liste) {
   liste.forEach(evrak => {
     const card = document.createElement('div');
     card.className = `a4-card ${seciliKartId === evrak.id ? 'active' : ''}`;
-    card.title = (evrak.okunan_metin ? "OCR Notu:\n" + evrak.okunan_metin.substring(0, 300) + "..." : ""); 
+    // Standart rahatsız edici title özelliği KALDIRILDI!
     
     card.onclick = () => { 
       if(seciliKartId === evrak.id) { panelKapat(); } 
@@ -144,7 +142,7 @@ function kartlariCiz(liste) {
       } 
     };
     
-    let ocrHtml = evrak.okunan_metin && evrak.okunan_metin.trim() !== "" ? `<div class="a4-ocr-snippet">"${evrak.okunan_metin.substring(0, 150).replace(/\n/g, ' ')}..."</div>` : ``;
+    let ocrHtml = evrak.okunan_metin && evrak.okunan_metin.trim() !== "" ? `<div class="a4-ocr-snippet">"${evrak.okunan_metin.replace(/\n/g, ' ')}"</div>` : ``;
 
     card.innerHTML = `
       <div class="a4-header"><span class="a4-no">No: ${evrak.evrak_sayisi}</span><span class="a4-date">${formatTR(evrak.evrak_tarihi)}</span></div>
@@ -215,7 +213,7 @@ window.eskiMetniYenidenTara = async function() {
 }
 
 async function ocrTaramasiBaslat(arrayBuffer) {
-  document.getElementById('ocr-status-area').style.display = 'block';
+  document.getElementById('ocr-status-area').style.display = 'flex';
   document.getElementById('ocr-text-container').style.display = 'none';
   document.getElementById('ocr-animation').style.display = 'block';
   document.getElementById('ocr-status-text').innerText = "Yapay Zeka Hazırlanıyor...";
@@ -252,7 +250,7 @@ async function ocrTaramasiBaslat(arrayBuffer) {
     document.getElementById('ocr-animation').style.display = 'none';
     if(fullText.trim() !== "") {
       document.getElementById('evrak-okunan-metin').value = fullText;
-      document.getElementById('ocr-text-container').style.display = 'block'; 
+      document.getElementById('ocr-text-container').style.display = 'flex'; 
     } else { throw new Error("Boş metin"); }
   } catch (err) {
     document.getElementById('ocr-animation').style.display = 'none';
@@ -278,8 +276,8 @@ window.modalAc = function(mod, id = null) {
     document.getElementById('evrak-konusu').value = evrak.evrak_konusu;
     
     document.getElementById('evrak-okunan-metin').value = evrak.okunan_metin || "";
-    document.getElementById('ocr-status-area').style.display = 'block';
-    document.getElementById('ocr-text-container').style.display = 'block';
+    document.getElementById('ocr-status-area').style.display = 'flex';
+    document.getElementById('ocr-text-container').style.display = 'flex';
     document.getElementById('ocr-animation').style.display = 'none';
     
     dragZone.style.display = 'none'; preview.style.display = 'block';

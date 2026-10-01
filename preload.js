@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   ayarlariGetir: () => ipcRenderer.invoke('ayarlari-getir'),
   ayarlariKaydet: (data) => ipcRenderer.invoke('ayarlari-kaydet', data),
   kategorileriGetir: () => ipcRenderer.invoke('kategorileri-getir'),
-  kategoriEkle: (ad) => ipcRenderer.invoke('kategori-ekle', ad),
+  kategoriEkle: (data) => ipcRenderer.invoke('kategori-ekle', data),
   kategoriSil: (ad) => ipcRenderer.invoke('kategori-sil', ad),
   kategoriDuzenle: (data) => ipcRenderer.invoke('kategori-duzenle', data),
   evrakKaydet: (data) => ipcRenderer.invoke('evrak-kaydet', data),

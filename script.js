@@ -1,7 +1,9 @@
-const APP_VERSION = "2.0.0";
+// GÜNCEL UYGULAMA VERSİYONU V3.0.0
+const APP_VERSION = "3.0.0";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
+// Artık aktifKategoriler string array'i değil, object array'idir: [{ad: 'X', renk: '#4db8ff'}, ...]
 let tumEvraklar = [], aktifKategoriler = [], seciliYil = null, seciliKategori = null;
 let modalModu = 'yeni', seciliKartId = null, currentFile = null;
 
@@ -73,7 +75,7 @@ async function klasorSecmeIslemi() {
 
 async function yukle() {
   tumEvraklar = await window.api.evrakleriGetir();
-  aktifKategoriler = await window.api.kategorileriGetir();
+  aktifKategoriler = await window.api.kategorileriGetir(); // [{ad, renk}] formatında gelir
   agacYapisiniCiz(); aramaYap();
 }
 
@@ -101,7 +103,6 @@ window.kategoriTikla = function(yil, kategori, event) {
   agacYapisiniCiz(); aramaYap();
 }
 
-// EVRENSEL ARAMA
 document.getElementById('arama-kutusu').addEventListener('input', aramaYap);
 
 function aramaYap() {
@@ -130,7 +131,6 @@ function kartlariCiz(liste) {
   liste.forEach(evrak => {
     const card = document.createElement('div');
     card.className = `a4-card ${seciliKartId === evrak.id ? 'active' : ''}`;
-    // Standart rahatsız edici title özelliği KALDIRILDI!
     
     card.onclick = () => { 
       if(seciliKartId === evrak.id) { panelKapat(); } 
@@ -142,12 +142,14 @@ function kartlariCiz(liste) {
       } 
     };
     
-    let ocrHtml = evrak.okunan_metin && evrak.okunan_metin.trim() !== "" ? `<div class="a4-ocr-snippet">"${evrak.okunan_metin.replace(/\n/g, ' ')}"</div>` : ``;
+    // Kategori Renk Eşleşmesi
+    const katRenk = aktifKategoriler.find(k => k.ad === evrak.kategori)?.renk || '#4db8ff';
+    let ocrHtml = evrak.okunan_metin && evrak.okunan_metin.trim() !== "" ? `<div class="a4-ocr-snippet" style="border-left-color: ${katRenk};">"${evrak.okunan_metin.replace(/\n/g, ' ')}"</div>` : ``;
 
     card.innerHTML = `
       <div class="a4-header"><span class="a4-no">No: ${evrak.evrak_sayisi}</span><span class="a4-date">${formatTR(evrak.evrak_tarihi)}</span></div>
       <div class="a4-subject">${evrak.evrak_konusu}</div>
-      <div class="a4-category">${evrak.kategori}</div>
+      <div class="a4-category" style="background: ${katRenk};">${evrak.kategori}</div>
       ${ocrHtml}
       <div class="card-hover-menu">
         <button class="card-btn" onclick="event.stopPropagation(); modalAc('duzenle', ${evrak.id})" title="Düzenle">✏️</button>
@@ -261,7 +263,7 @@ async function ocrTaramasiBaslat(arrayBuffer) {
 window.modalAc = function(mod, id = null) {
   modalModu = mod; currentFile = null;
   document.getElementById('modal-baslik').innerText = mod === 'yeni' ? "Yeni Evrak Ekle" : "Evrak Düzenle";
-  document.getElementById('evrak-kategori').innerHTML = aktifKategoriler.map(k => `<option value="${k}">${k}</option>`).join('');
+  document.getElementById('evrak-kategori').innerHTML = aktifKategoriler.map(k => `<option value="${k.ad}">${k.ad}</option>`).join('');
   document.getElementById('ocr-status-area').style.display = 'none';
   
   if(mod === 'yeni') {
@@ -313,7 +315,34 @@ document.getElementById('kaydet-btn').onclick = async () => {
 
 window.ayarlarModalAc = async function() { document.getElementById('guncel-yol').innerText = "Yol: " + ((await window.api.ayarlariGetir()).arsivYolu || "Seçilmedi"); document.getElementById('setup-kapat-btn').style.display = 'block'; kategoriListesiniCiz(); document.getElementById('setup-overlay').classList.add('show'); }
 window.ayarlarModalKapat = () => document.getElementById('setup-overlay').classList.remove('show');
-function kategoriListesiniCiz() { document.getElementById('kategori-listesi').innerHTML = aktifKategoriler.map(k => `<div class="kategori-item"><input type="text" value="${k}" id="kat-input-${k}"><div style="display:flex; gap:5px;"><button class="win-btn" onclick="kategoriGuncelle('${k}')" style="width:auto; padding:0 10px;">💾</button><button class="win-btn win-close" onclick="kategoriSil('${k}')" style="width:auto; padding:0 10px;">🗑</button></div></div>`).join(''); }
-window.kategoriEkle = async function() { const y = document.getElementById('yeni-kategori-input').value.trim(); if(!y||aktifKategoriler.includes(y)) return; const s = await window.api.kategoriEkle(y); if(s.basarili) { aktifKategoriler.push(y); document.getElementById('yeni-kategori-input').value = ""; kategoriListesiniCiz(); } }
-window.kategoriSil = function(k) { ozelOnay(`"${k}" silinsin mi?`, async () => { const s = await window.api.kategoriSil(k); if(s.basarili) { aktifKategoriler = aktifKategoriler.filter(x => x !== k); kategoriListesiniCiz(); await yukle(); } }); }
-window.kategoriGuncelle = async function(eski) { const yeni = document.getElementById(`kat-input-${eski}`).value.trim(); if(!yeni||eski===yeni) return; const s = await window.api.kategoriDuzenle({ eskiAd: eski, yeniAd: yeni }); if(s.basarili) { aktifKategoriler = await window.api.kategorileriGetir(); kategoriListesiniCiz(); await yukle(); } }
+
+function kategoriListesiniCiz() { 
+  document.getElementById('kategori-listesi').innerHTML = aktifKategoriler.map(k => `
+    <div class="kategori-item">
+      <input type="color" value="${k.renk || '#4db8ff'}" id="kat-renk-${k.ad}" style="width:30px; border:none; background:transparent; cursor:pointer;" title="Kategori Rengi">
+      <input type="text" value="${k.ad}" id="kat-input-${k.ad}">
+      <div style="display:flex; gap:5px;">
+        <button class="win-btn" onclick="kategoriGuncelle('${k.ad}')" style="width:auto; padding:0 10px;">💾</button>
+        <button class="win-btn win-close" onclick="kategoriSil('${k.ad}')" style="width:auto; padding:0 10px;">🗑</button>
+      </div>
+    </div>`).join(''); 
+}
+
+window.kategoriEkle = async function() { 
+  const y = document.getElementById('yeni-kategori-input').value.trim(); 
+  const r = document.getElementById('yeni-kategori-renk').value;
+  if(!y || aktifKategoriler.some(k => k.ad === y)) return; 
+  const s = await window.api.kategoriEkle({ ad: y, renk: r }); 
+  if(s.basarili) { aktifKategoriler.push({ad: y, renk: r}); document.getElementById('yeni-kategori-input').value = ""; kategoriListesiniCiz(); } 
+}
+
+window.kategoriSil = function(k) { ozelOnay(`"${k}" silinsin mi?`, async () => { const s = await window.api.kategoriSil(k); if(s.basarili) { aktifKategoriler = aktifKategoriler.filter(x => x.ad !== k); kategoriListesiniCiz(); await yukle(); } }); }
+
+window.kategoriGuncelle = async function(eski) { 
+  const yeni = document.getElementById(`kat-input-${eski}`).value.trim(); 
+  const yeniRenk = document.getElementById(`kat-renk-${eski}`).value;
+  const eskiKat = aktifKategoriler.find(k => k.ad === eski);
+  if(!yeni || (eski === yeni && eskiKat.renk === yeniRenk)) return; 
+  const s = await window.api.kategoriDuzenle({ eskiAd: eski, yeniAd: yeni, yeniRenk: yeniRenk }); 
+  if(s.basarili) { aktifKategoriler = await window.api.kategorileriGetir(); kategoriListesiniCiz(); await yukle(); } 
+}

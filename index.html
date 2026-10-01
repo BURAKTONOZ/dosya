@@ -11,7 +11,6 @@
 
   <div id="desktop-bg"></div>
 
-  <!-- ÜST BAR -->
   <header class="top-bar-module">
     <div class="top-logo-area">
       <img src="icon.ico" class="top-logo" alt="Logo" onerror="this.style.display='none'">
@@ -80,7 +79,6 @@
           <div class="form-group" style="flex:1;"><label>Evrak Sayısı</label><input type="text" id="evrak-sayisi"></div>
           <div class="form-group" style="flex:1;"><label>Evrak Tarihi</label><input type="date" id="evrak-tarihi"></div>
         </div>
-        
         <div class="form-group"><label>Evrak Konusu</label><input type="text" id="evrak-konusu"></div>
         
         <div id="ocr-status-area" style="display:none; margin-top:5px; padding:15px; background:var(--bg-light); border-radius:12px; border:1px solid var(--border); flex:1; display:flex; flex-direction:column;">
@@ -88,19 +86,16 @@
              <div class="ocr-scanner-wrapper"><div class="ocr-document">📄</div><div class="ocr-laser"></div></div>
              <span id="ocr-status-text" style="font-size:13px; font-weight:bold; color:var(--primary);">Yapay Zeka Taranıyor...</span>
           </div>
-
           <div id="ocr-text-container" style="display:none; flex:1; display:flex; flex-direction:column; animation: fadeIn 0.5s;">
             <div class="ocr-header-box">
                <div style="display:flex; align-items:center; gap:8px;">
-                 <span style="font-size:16px;">🤖</span>
-                 <label style="font-size:13px; color:var(--primary); font-weight:bold; margin:0;">Yapay Zeka Notu (OCR Metni)</label>
+                 <span style="font-size:16px;">🤖</span><label style="font-size:13px; color:var(--primary); font-weight:bold; margin:0;">Yapay Zeka Notu (OCR Metni)</label>
                </div>
                <button class="win-btn" id="rescan-btn" onclick="eskiMetniYenidenTara()" style="width:auto; padding:4px 12px; font-size:11px; font-weight:bold;" title="Metni Yeniden Tara">🔄 Tekrar Oku</button>
             </div>
             <textarea id="evrak-okunan-metin" style="flex:1; font-size:13px; line-height:1.6; padding:15px; resize:none; border-radius:8px; border: 1px solid var(--border);" placeholder="Okunan metin burada görünecektir."></textarea>
           </div>
         </div>
-
         <button class="submit-btn" id="kaydet-btn" style="margin-top:20px;">Arşive Kaydet</button>
       </div>
       
@@ -119,19 +114,34 @@
   </div>
 
   <!-- AYARLAR VE RENK SEÇİCİ -->
-  <div id="setup-overlay" class="overlay"><div class="setup-box" style="width: 500px;"><h2 id="setup-title">Sistem Ayarları</h2><div class="current-path" id="guncel-yol">Yol: Seçilmedi</div><button class="submit-btn" style="margin-bottom: 20px; width:100%;" onclick="klasorSecmeIslemi()">Arşiv Klasörünü Değiştir</button><div class="settings-section"><h3>Kategori Yönetimi</h3>
-  <div style="display:flex; gap:10px; margin-bottom: 15px;">
-    <input type="color" id="yeni-kategori-renk" value="#4db8ff" style="width:40px; padding:2px; height:38px; cursor:pointer;" title="Kategori Rengi">
-    <input type="text" id="yeni-kategori-input" placeholder="Yeni kategori..." style="flex:1;">
-    <button class="submit-btn" style="padding: 10px 15px;" onclick="kategoriEkle()">Ekle</button>
+  <div id="setup-overlay" class="overlay">
+    <div class="setup-box" style="width: 550px;">
+      <h2 id="setup-title">Sistem Ayarları</h2>
+      <div class="current-path" id="guncel-yol">Yol: Seçilmedi</div>
+      <button class="submit-btn" style="margin-bottom: 20px; width:100%;" onclick="klasorSecmeIslemi()">Arşiv Klasörünü Değiştir</button>
+      
+      <div class="settings-section">
+        <h3>Kategori Yönetimi</h3>
+        <!-- Yeni Kategori Ekleme Alanı -->
+        <div style="display:flex; gap:10px; margin-bottom: 20px; align-items:center;">
+          <input type="color" id="yeni-kategori-renk" value="#4db8ff" title="Renk Seç">
+          <input type="text" id="yeni-kategori-input" placeholder="Yeni kategori adı yazın..." style="flex:1; font-size:14px;">
+          <button class="submit-btn" style="padding: 10px 20px;" onclick="kategoriEkle()">➕ Ekle</button>
+        </div>
+        <div id="kategori-listesi"></div>
+      </div>
+      
+      <div class="setup-buttons" style="margin-top: 20px;">
+        <button class="modal-close-btn" id="setup-kapat-btn" onclick="ayarlarModalKapat()" style="display:none;">Kapat</button>
+      </div>
+    </div>
   </div>
-  <div id="kategori-listesi"></div></div><div class="setup-buttons" style="margin-top: 20px;"><button class="modal-close-btn" id="setup-kapat-btn" onclick="ayarlarModalKapat()" style="display:none;">Kapat</button></div></div></div>
+
   <div id="custom-alert" class="overlay"><div class="setup-box" style="width: 350px; text-align:center;"><h2>Bilgi</h2><p id="alert-message" style="margin-bottom: 25px;"></p><button class="submit-btn" onclick="document.getElementById('custom-alert').classList.remove('show')">Tamam</button></div></div>
   <div id="custom-confirm" class="overlay"><div class="setup-box" style="width: 350px; text-align:center;"><h2>Emin misiniz?</h2><p id="confirm-message" style="margin-bottom: 25px;"></p><div class="setup-buttons"><button class="submit-btn" id="confirm-yes">Evet</button><button class="modal-close-btn" onclick="document.getElementById('custom-confirm').classList.remove('show')">İptal</button></div></div></div>
 
-  <!-- ZORUNLU VERSİYON UYARISI -->
   <div id="versiyon-alert" class="overlay"><div class="setup-box" style="width: 400px; text-align:center; border-color:#e74c3c; box-shadow:0 0 50px rgba(231,76,60,0.3);">
-    <h2 style="color:#e74c3c;">⚠️ Güncelleme Gerekli</h2>
+    <h2 style="color:#e74c3c;">⚠️️ Güncelleme Gerekli</h2>
     <p style="margin-bottom: 25px; line-height:1.5;">Sistemde daha güncel bir versiyon tespit edildi.<br>Veri bütünlüğünü korumak için lütfen mevcut programı silin ve yeni versiyonu kurun.</p>
     <button class="submit-btn" style="background:#e74c3c;" onclick="window.api.forceQuit()">Anladım, Kapat</button>
   </div></div>

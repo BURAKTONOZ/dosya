@@ -3,30 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <style>
-    /* Tam şeffaf masaüstü arkaplanı */
     body { margin: 0; padding: 0; background: transparent; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; -webkit-app-region: drag; user-select: none; }
-    
-    /* Buzlu Cam Kapsül */
     .splash-container { background: rgba(20, 24, 32, 0.85); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.1); border-top: 1px solid rgba(255,255,255,0.2); border-radius: 20px; width: 90%; height: 90%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; box-shadow: 0 25px 50px rgba(0,0,0,0.8), 0 0 30px rgba(77, 184, 255, 0.1); }
-    
-    /* Nefes Alan Logo */
     .logo { width: 80px; height: 80px; margin-bottom: 25px; animation: breathe 2.5s infinite ease-in-out; border-radius: 15px;}
     @keyframes breathe { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(77,184,255,0.3)); } 50% { transform: scale(1.08); filter: drop-shadow(0 0 25px rgba(77,184,255,0.8)); } }
-    
-    /* Kurumsal Metinler */
     .title { font-size: 18px; font-weight: 900; letter-spacing: 1.5px; text-align: center; margin-bottom: 5px; color: #ffffff; text-shadow: 0 2px 10px rgba(0,0,0,0.5);}
     .subtitle { font-size: 11px; color: #4db8ff; letter-spacing: 3px; font-weight: bold; margin-bottom: 45px; text-align: center; }
-    
-    /* Siber Yükleme Çubuğu */
     .loading-wrapper { width: 65%; position: relative; display: flex; flex-direction: column; align-items: center; }
     .laser-line { width: 100%; height: 2px; background: rgba(255,255,255,0.05); position: relative; overflow: hidden; border-radius: 2px; }
     .laser-beam { position: absolute; top: 0; left: -50%; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, #4db8ff, #ffffff, #4db8ff, transparent); animation: laser 1.8s infinite cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px #4db8ff;}
     @keyframes laser { 0% { left: -50%; } 100% { left: 100%; } }
-    
     .status { font-size: 11px; color: #aab5c2; margin-top: 15px; text-align: center; animation: pulse 1.5s infinite; letter-spacing: 1px;}
     @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-    
-    /* Sönük Gizli İmza */
     .watermark { position: absolute; bottom: 20px; font-size: 10px; color: rgba(255,255,255,0.25); letter-spacing: 4px; font-weight: bold; pointer-events: none;}
   </style>
 </head>
@@ -37,9 +25,17 @@
     <div class="subtitle">NUMARATAJ ŞUBE MÜDÜRLÜĞÜ</div>
     <div class="loading-wrapper">
       <div class="laser-line"><div class="laser-beam"></div></div>
-      <div class="status">Sistem Çekirdeği Başlatılıyor...</div>
+      <div class="status" id="splash-status">Sistem başlatılıyor...</div>
     </div>
-    <div class="watermark">&copy; 2026 TONOZ | V2.0.0</div>
+    <div class="watermark">&copy; 2026 TONOZ | V3.0.0</div>
   </div>
+
+  <script>
+    const msgs = ["Arşive bağlanıyor...", "Veritabanı alındı...", "Versiyon kontrol ediliyor...", "Arayüz modülleri yükleniyor...", "Sistem çekirdeği başlatılıyor..."];
+    let i = 0;
+    setInterval(() => {
+      if(i < msgs.length) { document.getElementById('splash-status').innerText = msgs[i]; i++; }
+    }, 700);
+  </script>
 </body>
 </html>

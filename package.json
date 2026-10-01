@@ -1,7 +1,7 @@
 {
   "name": "ndys",
   "productName": "NDYS",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "Numarataj Dosya Yönetim Sistemi",
   "main": "main.js",
   "scripts": {

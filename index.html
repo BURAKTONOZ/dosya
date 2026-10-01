@@ -11,7 +11,7 @@
 
   <div id="desktop-bg"></div>
 
-  <!-- ÜST BAR (KURUMSAL YAZILAR EKLENDİ) -->
+  <!-- ÜST BAR -->
   <header class="top-bar-module">
     <div class="top-logo-area">
       <img src="icon.ico" class="top-logo" alt="Logo" onerror="this.style.display='none'">
@@ -21,7 +21,6 @@
       </div>
     </div>
     
-    <!-- EVRENSEL ARAMA (Tek Kutu) -->
     <div class="search-module">
       <span style="padding-left:10px;">🔍</span>
       <input type="text" id="arama-kutusu" placeholder="Evrak Konusu, Sayısı veya İçeriğinde arayın... (Kısayol: Ctrl+F)">
@@ -72,10 +71,10 @@
 
   <button id="ctx-disa-aktar" style="display:none;"></button>
 
-  <!-- YENİ/DÜZENLE MODALI (Sadeleşmiş Form) -->
+  <!-- YENİ/DÜZENLE MODALI -->
   <div id="modal-overlay" class="overlay">
     <div class="modal-box">
-      <!-- Sol: Form -->
+      <!-- Sol: Form (Artık esnek yapıya sahip) -->
       <div class="modal-form">
         <h2 id="modal-baslik">Yeni Evrak</h2>
         <input type="hidden" id="evrak-id">
@@ -84,32 +83,38 @@
           <div class="form-group" style="flex:1;"><label>Evrak Sayısı</label><input type="text" id="evrak-sayisi"></div>
           <div class="form-group" style="flex:1;"><label>Evrak Tarihi</label><input type="date" id="evrak-tarihi"></div>
         </div>
-        <div class="form-group"><label>Evrak Konusu</label><textarea id="evrak-konusu" rows="3" style="resize:none;"></textarea></div>
         
-        <!-- HAVALI OCR ANİMASYONU VE METİN ALANI -->
-        <div id="ocr-status-area" style="display:none; margin-top:5px; padding:15px; background:var(--bg-light); border-radius:12px; border:1px solid var(--border);">
+        <!-- Evrak Konusu artık tek satır -->
+        <div class="form-group"><label>Evrak Konusu</label><input type="text" id="evrak-konusu"></div>
+        
+        <!-- YAPAY ZEKA ALANI (Pencereye göre otomatik uzar) -->
+        <div id="ocr-status-area" style="display:none; margin-top:5px; padding:15px; background:var(--bg-light); border-radius:12px; border:1px solid var(--border); flex:1; display:flex; flex-direction:column;">
           
-          <div id="ocr-animation" style="display:none; text-align:center;">
+          <div id="ocr-animation" style="display:none; text-align:center; padding: 20px 0;">
              <div class="ocr-scanner-wrapper">
                 <div class="ocr-document">📄</div>
                 <div class="ocr-laser"></div>
              </div>
-             <span id="ocr-status-text" style="font-size:12px; font-weight:bold; color:var(--primary);">Yapay Zeka Taranıyor...</span>
+             <span id="ocr-status-text" style="font-size:13px; font-weight:bold; color:var(--primary);">Yapay Zeka Taranıyor...</span>
           </div>
 
-          <div id="ocr-text-container" style="display:none; animation: fadeIn 0.5s;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-               <label style="font-size:11px; color:var(--primary); margin:0;">🤖 Yapay Zeka Notu (OCR Metni):</label>
-               <button class="win-btn" id="rescan-btn" onclick="eskiMetniYenidenTara()" style="width:auto; padding:0 8px; font-size:11px;" title="Metni Yeniden Tara">🔄 Tekrar Oku</button>
+          <div id="ocr-text-container" style="display:none; flex:1; display:flex; flex-direction:column; animation: fadeIn 0.5s;">
+            <div class="ocr-header-box">
+               <div style="display:flex; align-items:center; gap:8px;">
+                 <span style="font-size:16px;">🤖</span>
+                 <label style="font-size:13px; color:var(--primary); font-weight:bold; margin:0;">Yapay Zeka Notu (OCR Metni)</label>
+               </div>
+               <button class="win-btn" id="rescan-btn" onclick="eskiMetniYenidenTara()" style="width:auto; padding:4px 12px; font-size:11px; font-weight:bold;" title="Metni Yeniden Tara">🔄 Tekrar Oku</button>
             </div>
-            <textarea id="evrak-okunan-metin" rows="9" style="font-size:11px; line-height:1.4;" placeholder="Okunan metin burada görünecektir."></textarea>
+            <!-- Textarea esnek olarak tüm boş alanı kaplar -->
+            <textarea id="evrak-okunan-metin" style="flex:1; font-size:13px; line-height:1.6; padding:15px; resize:none; border-radius:8px; border: 1px solid var(--border);" placeholder="Okunan metin burada görünecektir."></textarea>
           </div>
         </div>
 
-        <button class="submit-btn" id="kaydet-btn" style="margin-top:auto;">Arşive Kaydet</button>
+        <button class="submit-btn" id="kaydet-btn" style="margin-top:20px;">Arşive Kaydet</button>
       </div>
       
-      <!-- Sağ: Sadece PDF veya Drag Zone -->
+      <!-- Sağ: PDF Görünümü -->
       <div class="modal-pdf">
         <div class="pdf-upload-header">
           <span class="pdf-upload-title" id="pdf-upload-title">Evrak Görüntüsü</span>
@@ -133,7 +138,7 @@
 
   <!-- ZORUNLU VERSİYON UYARISI -->
   <div id="versiyon-alert" class="overlay"><div class="setup-box" style="width: 400px; text-align:center; border-color:#e74c3c; box-shadow:0 0 50px rgba(231,76,60,0.3);">
-    <h2 style="color:#e74c3c;">⚠️ Güncelleme Gerekli</h2>
+    <h2 style="color:#e74c3c;">⚠️️ Güncelleme Gerekli</h2>
     <p style="margin-bottom: 25px; line-height:1.5;">Sistemde daha güncel bir versiyon tespit edildi.<br>Veri bütünlüğünü korumak için lütfen mevcut programı silin ve yeni versiyonu kurun.</p>
     <button class="submit-btn" style="background:#e74c3c;" onclick="window.api.forceQuit()">Anladım, Kapat</button>
   </div></div>

@@ -19,8 +19,6 @@ function initDB(yol) {
   db = new sqlite3.Database(path.join(yol, 'ndys_veritabani.db'), (err) => {
     if (!err) db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
   });
-  
-  // Tabloları Oluştur
   db.run(`CREATE TABLE IF NOT EXISTS sistem_bilgi (id INTEGER PRIMARY KEY, versiyon TEXT)`);
   db.run(`CREATE TABLE IF NOT EXISTS evraklar (id INTEGER PRIMARY KEY AUTOINCREMENT, evrak_sayisi TEXT, evrak_tarihi TEXT, evrak_konusu TEXT, kategori TEXT, kisa_aciklama TEXT, dosya_yolu TEXT, okunan_metin TEXT, kayit_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP)`, () => {
     db.run(`ALTER TABLE evraklar ADD COLUMN okunan_metin TEXT`, () => {}); 
@@ -33,7 +31,7 @@ function initDB(yol) {
 }
 
 function createWindows() {
-  splashWindow = new BrowserWindow({ width: 500, height: 350, transparent: true, frame: false, alwaysOnTop: true, icon: path.join(__dirname, 'icon.ico') });
+  splashWindow = new BrowserWindow({ width: 550, height: 380, transparent: true, frame: false, alwaysOnTop: true, icon: path.join(__dirname, 'icon.ico') });
   splashWindow.loadFile('splash.html');
   
   mainWindow = new BrowserWindow({
@@ -42,7 +40,7 @@ function createWindows() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
   mainWindow.loadFile('index.html');
-  setTimeout(() => { splashWindow.close(); mainWindow.show(); }, 3500);
+  setTimeout(() => { splashWindow.close(); mainWindow.show(); }, 4000); // Havalı ekran biraz daha uzun kalsın
 }
 
 app.whenReady().then(() => {
@@ -53,11 +51,19 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 
 ipcMain.on('window-minimize', () => mainWindow.minimize());
-ipcMain.on('window-maximize', () => mainWindow.isMaximized() ? mainWindow.restore() : mainWindow.maximize());
 ipcMain.on('window-close', () => mainWindow.close());
 ipcMain.on('force-quit', () => app.quit());
 
-// VERİTABANI ODAKLI VERSİYON KONTROLÜ
+// PENCERE TAM EKRAN / KÜÇÜLTME (RESTORE) HATASI ÇÖZÜMÜ
+ipcMain.on('window-maximize', () => {
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize(); // "restore" yerine unmaximize kullanılarak eski boyuta dönmesi garantilendi
+  } else {
+    mainWindow.maximize();
+  }
+});
+
+// VERSİYON KONTROLÜ
 ipcMain.handle('versiyon-kontrol', async (e, appVersion) => {
   if(!db) return { durum: 'db_yok' };
   return new Promise((resolve) => {
@@ -114,7 +120,6 @@ ipcMain.handle('evrak-kaydet', async (e, data) => {
     if (!fs.existsSync(kategoriKlasoru)) fs.mkdirSync(kategoriKlasoru);
     const yeniPdfYolu = path.join(kategoriKlasoru, `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`);
     fs.writeFileSync(yeniPdfYolu, Buffer.from(data.pdfBuffer));
-    // Kisa aciklamayi bos gonderiyoruz (Veritabanini bozmamak icin kolonu koruduk)
     return new Promise((res, rej) => db.run(`INSERT INTO evraklar (evrak_sayisi, evrak_tarihi, evrak_konusu, kategori, kisa_aciklama, dosya_yolu, okunan_metin) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
       [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, "", yeniPdfYolu, data.okunanMetin], err => err ? rej(err.message) : res({ basarili: true })));
   } catch (err) { return { basarili: false, mesaj: err.message }; }

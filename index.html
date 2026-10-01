@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <title>NDYS</title>
+  <title>NDYS v2.0</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -11,14 +11,17 @@
 
   <div id="desktop-bg"></div>
 
-  <!-- ÜST BAR -->
+  <!-- ÜST BAR (KURUMSAL YAZILAR EKLENDİ) -->
   <header class="top-bar-module">
     <div class="top-logo-area">
       <img src="icon.ico" class="top-logo" alt="Logo" onerror="this.style.display='none'">
-      <div class="top-title-text"><strong>NDYS</strong> <span style="color:var(--text-muted);">| Numarataj</span></div>
+      <div class="top-title-text">
+        <strong>NDYS - Numarataj Dosya Yönetim Sistemi</strong> 
+        <span style="color:var(--text-muted); font-size:12px; margin-left:5px;">| Numarataj Şube Müdürlüğü</span>
+      </div>
     </div>
     
-    <!-- EVRENSEL ARAMA (Şalter Kaldırıldı) -->
+    <!-- EVRENSEL ARAMA (Tek Kutu) -->
     <div class="search-module">
       <span style="padding-left:10px;">🔍</span>
       <input type="text" id="arama-kutusu" placeholder="Evrak Konusu, Sayısı veya İçeriğinde arayın... (Kısayol: Ctrl+F)">
@@ -34,9 +37,8 @@
     </div>
   </header>
 
-  <!-- 3 SÜTUNLU ÇALIŞMA ALANI -->
+  <!-- ÇALIŞMA ALANI -->
   <div id="workspace">
-    <!-- SOL: AĞAÇ MENÜ -->
     <nav class="solid-module left-menu">
       <div class="menu-title">📂 Klasör Dizini</div>
       <div id="tree-menu" class="tree-menu"></div>
@@ -45,13 +47,11 @@
       </div>
     </nav>
 
-    <!-- ORTA: DİKEY A4 KARTLAR -->
     <main class="solid-module center-cards" id="center-module">
       <div class="center-header"><h2 id="aktif-baslik">Tüm Arşiv</h2></div>
       <div id="cards-container"></div>
     </main>
 
-    <!-- SAĞ: PDF OKUYUCU -->
     <aside class="solid-module right-pdf hidden" id="pdf-panel">
       <div class="pdf-header">
         <div class="pdf-title-box">
@@ -84,7 +84,7 @@
           <div class="form-group" style="flex:1;"><label>Evrak Sayısı</label><input type="text" id="evrak-sayisi"></div>
           <div class="form-group" style="flex:1;"><label>Evrak Tarihi</label><input type="date" id="evrak-tarihi"></div>
         </div>
-        <div class="form-group"><label>Evrak Konusu</label><textarea id="evrak-konusu" rows="2" style="resize:none;"></textarea></div>
+        <div class="form-group"><label>Evrak Konusu</label><textarea id="evrak-konusu" rows="3" style="resize:none;"></textarea></div>
         
         <!-- HAVALI OCR ANİMASYONU VE METİN ALANI -->
         <div id="ocr-status-area" style="display:none; margin-top:5px; padding:15px; background:var(--bg-light); border-radius:12px; border:1px solid var(--border);">
@@ -102,7 +102,7 @@
                <label style="font-size:11px; color:var(--primary); margin:0;">🤖 Yapay Zeka Notu (OCR Metni):</label>
                <button class="win-btn" id="rescan-btn" onclick="eskiMetniYenidenTara()" style="width:auto; padding:0 8px; font-size:11px;" title="Metni Yeniden Tara">🔄 Tekrar Oku</button>
             </div>
-            <textarea id="evrak-okunan-metin" rows="7" style="font-size:11px; line-height:1.4;" placeholder="Okunan metin burada görünecektir."></textarea>
+            <textarea id="evrak-okunan-metin" rows="9" style="font-size:11px; line-height:1.4;" placeholder="Okunan metin burada görünecektir."></textarea>
           </div>
         </div>
 

@@ -67,26 +67,29 @@ body.pdf-open #cards-container { grid-template-columns: 1fr; }
 .a4-no { font-size: 12px; font-weight: bold; color: var(--text-muted); }
 .a4-date { font-size: 11px; color: var(--text-muted); }
 .a4-subject { font-size: 15px; font-weight: 900; color: var(--a4-text); margin-bottom: 10px; line-height: 1.4; }
-.a4-category { font-size: 11px; font-weight: bold; color: white; background: var(--primary); padding: 4px 8px; border-radius: 4px; align-self: flex-start; margin-bottom: 15px;}
+.a4-category { font-size: 11px; font-weight: bold; color: white; padding: 4px 8px; border-radius: 4px; align-self: flex-start; margin-bottom: 15px;}
 
-/* OCR METNİ (KAYAN ANİMASYON) */
+/* İÇİNDEN KAYDIRILABİLİR (SCROLLABLE) OCR METNİ */
 .a4-ocr-snippet { 
-  font-size: 12px; 
+  font-size: 11px; 
   color: var(--text-muted); 
   background: var(--bg-light); 
   padding: 12px; 
   border-radius: 6px; 
   border-left: 3px solid var(--primary); 
-  line-height: 1.6; 
+  line-height: 1.5; 
   margin-bottom: 25px;
-  max-height: 60px; /* Yaklaşık 2-3 satır */
-  overflow: hidden;
+  max-height: 60px; /* Sabit kısa görünüm */
+  overflow: hidden; 
   transition: max-height 0.4s ease-in-out; 
 }
-/* Mouse ile üzerine gelince metin aşağı kayarak açılır */
 .a4-card:hover .a4-ocr-snippet {
-  max-height: 250px; /* Daha fazla metin gösterir */
+  max-height: 200px; /* Fare üzerine gelince genişler */
+  overflow-y: auto; /* Kendi içinde scroll bar açılır */
 }
+.a4-ocr-snippet::-webkit-scrollbar { width: 4px; }
+.a4-ocr-snippet::-webkit-scrollbar-track { background: transparent; }
+.a4-ocr-snippet::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
 
 .card-hover-menu { position: absolute; bottom: 12px; right: 12px; display: flex; gap: 8px; opacity: 0; transition: 0.3s; background: var(--a4-bg); padding: 4px; border-radius: 6px;}
 .a4-card:hover .card-hover-menu { opacity: 1; }
@@ -121,7 +124,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--primary); }
 .submit-btn { padding: 14px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; }
 .submit-btn:hover { background: var(--primary-hover); }
 
-/* OCR ALANI BAŞLIK DÜZENİ */
 .ocr-header-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }

@@ -19,14 +19,21 @@ function initDB(yol) {
   db = new sqlite3.Database(path.join(yol, 'ndys_veritabani.db'), (err) => {
     if (!err) db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
   });
+  
   db.run(`CREATE TABLE IF NOT EXISTS sistem_bilgi (id INTEGER PRIMARY KEY, versiyon TEXT)`);
   db.run(`CREATE TABLE IF NOT EXISTS evraklar (id INTEGER PRIMARY KEY AUTOINCREMENT, evrak_sayisi TEXT, evrak_tarihi TEXT, evrak_konusu TEXT, kategori TEXT, kisa_aciklama TEXT, dosya_yolu TEXT, okunan_metin TEXT, kayit_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP)`, () => {
     db.run(`ALTER TABLE evraklar ADD COLUMN okunan_metin TEXT`, () => {}); 
   });
-  db.run(`CREATE TABLE IF NOT EXISTS kategoriler (id INTEGER PRIMARY KEY AUTOINCREMENT, ad TEXT UNIQUE)`, () => {
-    db.get(`SELECT COUNT(*) as count FROM kategoriler`, (err, row) => {
-      if (row && row.count === 0) ["Mahkeme Yazıları", "İsimlendirme Yazıları", "Genel Vatandaş Dilekçeleri"].forEach(k => db.run(`INSERT INTO kategoriler (ad) VALUES (?)`, [k]));
-    });
+  
+  // Renk Sütunu Eklendi
+  db.run(`CREATE TABLE IF NOT EXISTS kategoriler (id INTEGER PRIMARY KEY AUTOINCREMENT, ad TEXT UNIQUE, renk TEXT DEFAULT '#4db8ff')`, () => {
+    db.run(`ALTER TABLE kategoriler ADD COLUMN renk TEXT DEFAULT '#4db8ff'`, () => {
+      db.get(`SELECT COUNT(*) as count FROM kategoriler`, (err, row) => {
+        if (row && row.count === 0) {
+          ["Mahkeme Yazıları", "İsimlendirme Yazıları", "Genel Vatandaş Dilekçeleri"].forEach(k => db.run(`INSERT INTO kategoriler (ad, renk) VALUES (?, '#4db8ff')`, [k]));
+        }
+      });
+    }); 
   });
 }
 
@@ -40,7 +47,7 @@ function createWindows() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
   mainWindow.loadFile('index.html');
-  setTimeout(() => { splashWindow.close(); mainWindow.show(); }, 4000); // Havalı ekran biraz daha uzun kalsın
+  setTimeout(() => { splashWindow.close(); mainWindow.show(); }, 4000); 
 }
 
 app.whenReady().then(() => {
@@ -53,17 +60,8 @@ app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(
 ipcMain.on('window-minimize', () => mainWindow.minimize());
 ipcMain.on('window-close', () => mainWindow.close());
 ipcMain.on('force-quit', () => app.quit());
+ipcMain.on('window-maximize', () => { if (mainWindow.isMaximized()) { mainWindow.unmaximize(); } else { mainWindow.maximize(); } });
 
-// PENCERE TAM EKRAN / KÜÇÜLTME (RESTORE) HATASI ÇÖZÜMÜ
-ipcMain.on('window-maximize', () => {
-  if (mainWindow.isMaximized()) {
-    mainWindow.unmaximize(); // "restore" yerine unmaximize kullanılarak eski boyuta dönmesi garantilendi
-  } else {
-    mainWindow.maximize();
-  }
-});
-
-// VERSİYON KONTROLÜ
 ipcMain.handle('versiyon-kontrol', async (e, appVersion) => {
   if(!db) return { durum: 'db_yok' };
   return new Promise((resolve) => {
@@ -77,14 +75,9 @@ ipcMain.handle('versiyon-kontrol', async (e, appVersion) => {
         let cmp = 0;
         for(let i=0; i<3; i++) { if(vApp[i] > vDb[i]) { cmp = 1; break; } if(vApp[i] < vDb[i]) { cmp = -1; break; } }
         
-        if (cmp > 0) { // Uygulama yeni, DB eski
-          db.run(`UPDATE sistem_bilgi SET versiyon = ? WHERE id = 1`, [appVersion]);
-          resolve({ durum: 'guncellendi', dbVersiyon: appVersion });
-        } else if (cmp < 0) { // Uygulama eski, DB yeni (ZORUNLU ÇIKIŞ)
-          resolve({ durum: 'eski', dbVersiyon: row.versiyon });
-        } else {
-          resolve({ durum: 'guncel', dbVersiyon: row.versiyon });
-        }
+        if (cmp > 0) { db.run(`UPDATE sistem_bilgi SET versiyon = ? WHERE id = 1`, [appVersion]); resolve({ durum: 'guncellendi', dbVersiyon: appVersion }); } 
+        else if (cmp < 0) { resolve({ durum: 'eski', dbVersiyon: row.versiyon }); } 
+        else { resolve({ durum: 'guncel', dbVersiyon: row.versiyon }); }
       }
     });
   });
@@ -100,15 +93,21 @@ ipcMain.handle('klasor-sec', async () => {
   return { basarili: true, yol: result.filePaths[0] };
 });
 
-ipcMain.handle('kategorileri-getir', () => new Promise(res => db ? db.all(`SELECT ad FROM kategoriler ORDER BY ad ASC`, [], (err, rows) => res(err ? [] : rows.map(r => r.ad))) : res([])));
-ipcMain.handle('kategori-ekle', async (e, ad) => new Promise(res => db.run(`INSERT INTO kategoriler (ad) VALUES (?)`, [ad], err => res({ basarili: !err, mesaj: err?.message }))));
+ipcMain.handle('kategorileri-getir', () => new Promise(res => db ? db.all(`SELECT ad, renk FROM kategoriler ORDER BY ad ASC`, [], (err, rows) => res(err ? [] : rows)) : res([])));
+ipcMain.handle('kategori-ekle', async (e, data) => new Promise(res => db.run(`INSERT INTO kategoriler (ad, renk) VALUES (?, ?)`, [data.ad, data.renk], err => res({ basarili: !err, mesaj: err?.message }))));
 ipcMain.handle('kategori-sil', async (e, ad) => new Promise(res => db.run(`DELETE FROM kategoriler WHERE ad = ?`, [ad], err => res({ basarili: !err, mesaj: err?.message }))));
-ipcMain.handle('kategori-duzenle', async (e, { eskiAd, yeniAd }) => {
+ipcMain.handle('kategori-duzenle', async (e, { eskiAd, yeniAd, yeniRenk }) => {
   try {
-    const evraklar = await new Promise((res, rej) => db.all(`SELECT id, dosya_yolu FROM evraklar WHERE kategori = ?`, [eskiAd], (err, rows) => err ? rej(err) : res(rows)));
-    fs.readdirSync(aktifArsivYolu).forEach(yil => { if (yil.length === 4 && fs.existsSync(path.join(aktifArsivYolu, yil, eskiAd))) fs.renameSync(path.join(aktifArsivYolu, yil, eskiAd), path.join(aktifArsivYolu, yil, yeniAd)); });
-    evraklar.forEach(evrak => db.run(`UPDATE evraklar SET kategori = ?, dosya_yolu = ? WHERE id = ?`, [yeniAd, evrak.dosya_yolu.replace(`\\${eskiAd}\\`, `\\${yeniAd}\\`), evrak.id]));
-    db.run(`UPDATE kategoriler SET ad = ? WHERE ad = ?`, [yeniAd, eskiAd]);
+    if(eskiAd !== yeniAd) {
+      const evraklar = await new Promise((res, rej) => db.all(`SELECT id, dosya_yolu FROM evraklar WHERE kategori = ?`, [eskiAd], (err, rows) => err ? rej(err) : res(rows)));
+      fs.readdirSync(aktifArsivYolu).forEach(yil => { 
+        const eskiYol = path.join(aktifArsivYolu, yil, eskiAd);
+        const yeniYol = path.join(aktifArsivYolu, yil, yeniAd);
+        if (yil.length === 4 && fs.existsSync(eskiYol)) fs.renameSync(eskiYol, yeniYol); 
+      });
+      evraklar.forEach(evrak => db.run(`UPDATE evraklar SET kategori = ?, dosya_yolu = ? WHERE id = ?`, [yeniAd, evrak.dosya_yolu.replace(`\\${eskiAd}\\`, `\\${yeniAd}\\`), evrak.id]));
+    }
+    db.run(`UPDATE kategoriler SET ad = ?, renk = ? WHERE ad = ?`, [yeniAd, yeniRenk, eskiAd]);
     return { basarili: true };
   } catch (err) { return { basarili: false }; }
 });

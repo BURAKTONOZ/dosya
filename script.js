@@ -1,9 +1,7 @@
-// GÜNCEL UYGULAMA VERSİYONU V3.0.0
 const APP_VERSION = "3.0.0";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-// Artık aktifKategoriler string array'i değil, object array'idir: [{ad: 'X', renk: '#4db8ff'}, ...]
 let tumEvraklar = [], aktifKategoriler = [], seciliYil = null, seciliKategori = null;
 let modalModu = 'yeni', seciliKartId = null, currentFile = null;
 
@@ -11,22 +9,15 @@ function ozelUyari(mesaj) { document.getElementById('alert-message').innerText =
 function ozelOnay(mesaj, cb) { document.getElementById('confirm-message').innerText = mesaj; document.getElementById('confirm-yes').onclick = () => { document.getElementById('custom-confirm').classList.remove('show'); cb(); }; document.getElementById('custom-confirm').classList.add('show'); }
 const formatTR = (t) => t ? t.split('-').reverse().join('.') : '';
 
-// KLAVYE ASİSTANI VE SMART SCROLL
 document.addEventListener('keydown', (e) => {
   if (e.ctrlKey && e.key.toLowerCase() === 'f') { e.preventDefault(); document.getElementById('arama-kutusu').focus(); }
-  
   const visibleCards = Array.from(document.querySelectorAll('.a4-card'));
   if (visibleCards.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
     e.preventDefault();
     let currentIndex = visibleCards.findIndex(c => c.classList.contains('active'));
-    
-    if (e.key === 'ArrowDown' && currentIndex < visibleCards.length - 1) {
-      visibleCards[currentIndex + 1].click();
-    } else if (e.key === 'ArrowUp' && currentIndex > 0) {
-      visibleCards[currentIndex - 1].click();
-    } else if (e.key === 'ArrowDown' && currentIndex === -1) {
-      visibleCards[0].click();
-    }
+    if (e.key === 'ArrowDown' && currentIndex < visibleCards.length - 1) { visibleCards[currentIndex + 1].click(); } 
+    else if (e.key === 'ArrowUp' && currentIndex > 0) { visibleCards[currentIndex - 1].click(); } 
+    else if (e.key === 'ArrowDown' && currentIndex === -1) { visibleCards[0].click(); }
   }
   if (e.key === 'Escape') { 
     if(document.body.classList.contains('focus-mode')) odakModuGecis();
@@ -47,17 +38,11 @@ window.temaDegistir = async function() {
 document.addEventListener('DOMContentLoaded', async () => {
   const config = await window.api.ayarlariGetir();
   temaAyarla(config.tema || 'dark');
-  
-  if (!config.arsivYolu) { 
-    document.getElementById('setup-overlay').classList.add('show'); document.getElementById('setup-title').innerText = "İlk Kurulum"; 
-  } else { 
+  if (!config.arsivYolu) { document.getElementById('setup-overlay').classList.add('show'); document.getElementById('setup-title').innerText = "İlk Kurulum"; } 
+  else { 
     document.getElementById('guncel-yol').innerText = "Yol: " + config.arsivYolu; 
-    
     const vCheck = await window.api.versiyonKontrol(APP_VERSION);
-    if(vCheck.durum === 'eski') {
-       document.getElementById('versiyon-alert').classList.add('show');
-       return; 
-    }
+    if(vCheck.durum === 'eski') { document.getElementById('versiyon-alert').classList.add('show'); return; }
     await yukle(); 
   }
 });
@@ -69,13 +54,12 @@ async function klasorSecmeIslemi() {
     const vCheck = await window.api.versiyonKontrol(APP_VERSION);
     if(vCheck.durum === 'eski') { document.getElementById('versiyon-alert').classList.add('show'); return; }
     await yukle(); 
-  } 
-  else if (!snc.iptal) ozelUyari("Hata: " + snc.mesaj);
+  } else if (!snc.iptal) ozelUyari("Hata: " + snc.mesaj);
 }
 
 async function yukle() {
   tumEvraklar = await window.api.evrakleriGetir();
-  aktifKategoriler = await window.api.kategorileriGetir(); // [{ad, renk}] formatında gelir
+  aktifKategoriler = await window.api.kategorileriGetir(); 
   agacYapisiniCiz(); aramaYap();
 }
 
@@ -107,11 +91,9 @@ document.getElementById('arama-kutusu').addEventListener('input', aramaYap);
 
 function aramaYap() {
   const kel = document.getElementById('arama-kutusu').value.toLowerCase();
-  
   let filt = tumEvraklar;
   if(seciliYil) filt = filt.filter(e => e.evrak_tarihi.startsWith(seciliYil));
   if(seciliKategori) filt = filt.filter(e => e.kategori === seciliKategori);
-  
   if(kel) {
     filt = filt.filter(e => {
         return (e.evrak_konusu && e.evrak_konusu.toLowerCase().includes(kel)) || 
@@ -135,14 +117,11 @@ function kartlariCiz(liste) {
     card.onclick = () => { 
       if(seciliKartId === evrak.id) { panelKapat(); } 
       else { 
-        seciliKartId = evrak.id; 
-        belgeGoster(evrak.dosya_yolu, evrak.evrak_konusu); 
-        aramaYap(); 
+        seciliKartId = evrak.id; belgeGoster(evrak.dosya_yolu, evrak.evrak_konusu); aramaYap(); 
         setTimeout(() => { document.querySelector(`.a4-card.active`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
       } 
     };
     
-    // Kategori Renk Eşleşmesi
     const katRenk = aktifKategoriler.find(k => k.ad === evrak.kategori)?.renk || '#4db8ff';
     let ocrHtml = evrak.okunan_metin && evrak.okunan_metin.trim() !== "" ? `<div class="a4-ocr-snippet" style="border-left-color: ${katRenk};">"${evrak.okunan_metin.replace(/\n/g, ' ')}"</div>` : ``;
 
@@ -177,7 +156,6 @@ async function belgeGoster(yol, konu) {
 window.panelKapat = function() { seciliKartId = null; document.getElementById('pdf-panel').classList.remove('open'); document.getElementById('pdf-panel').classList.add('hidden'); document.body.classList.remove('pdf-open', 'focus-mode'); document.getElementById('focus-btn').innerText = "🔲"; document.getElementById('pdf-frame-view').src=""; aramaYap(); }
 window.odakModuGecis = function() { const btn = document.getElementById('focus-btn'); document.body.classList.toggle('focus-mode'); if(document.body.classList.contains('focus-mode')) btn.innerText = "🔳"; else btn.innerText = "🔲"; }
 
-// YENİ KAYIT VE LAZER ANİMASYONLU OCR
 const dragZone = document.getElementById('drag-zone');
 const pdfInput = document.getElementById('pdf-file');
 const preview = document.getElementById('modal-pdf-preview');
@@ -193,15 +171,13 @@ async function dosyaIsle(file) {
   currentFile = file;
   dragZone.style.display = 'none'; preview.style.display = 'block';
   preview.src = URL.createObjectURL(file) + '#view=FitH';
-  
   const arrayBuffer = await file.arrayBuffer();
   await ocrTaramasiBaslat(arrayBuffer);
 }
 
 window.eskiMetniYenidenTara = async function() {
   const btn = document.getElementById('rescan-btn');
-  btn.innerText = "⏳ Taranıyor...";
-  btn.disabled = true;
+  btn.innerText = "⏳ Taranıyor..."; btn.disabled = true;
   try {
      const evrak = tumEvraklar.find(e => e.id === parseInt(document.getElementById('evrak-id').value));
      const snc = await window.api.pdfOku(evrak.dosya_yolu);
@@ -210,8 +186,7 @@ window.eskiMetniYenidenTara = async function() {
        await ocrTaramasiBaslat(arr.buffer);
      }
   } catch(e) { ozelUyari("Tarama hatası!"); }
-  btn.innerText = "🔄 Tekrar Oku";
-  btn.disabled = false;
+  btn.innerText = "🔄 Tekrar Oku"; btn.disabled = false;
 }
 
 async function ocrTaramasiBaslat(arrayBuffer) {
@@ -227,12 +202,7 @@ async function ocrTaramasiBaslat(arrayBuffer) {
     let fullText = "";
     
     const worker = await Tesseract.createWorker('tur', 1, {
-      logger: m => {
-        if (m.status === 'recognizing text') {
-           let yuzde = (m.progress * 100).toFixed(0);
-           document.getElementById('ocr-status-text').innerText = `Yapay Zeka Taranıyor: Sayfa %${yuzde}`;
-        }
-      }
+      logger: m => { if (m.status === 'recognizing text') { document.getElementById('ocr-status-text').innerText = `Yapay Zeka Taranıyor: Sayfa %${(m.progress * 100).toFixed(0)}`; } }
     });
     
     for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
@@ -242,13 +212,11 @@ async function ocrTaramasiBaslat(arrayBuffer) {
       const ctx = canvas.getContext('2d');
       canvas.height = viewport.height; canvas.width = viewport.width;
       await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-      
       const imgData = canvas.toDataURL('image/png');
       const ret = await worker.recognize(imgData);
       fullText += ret.data.text + "\n\n";
     }
     await worker.terminate();
-    
     document.getElementById('ocr-animation').style.display = 'none';
     if(fullText.trim() !== "") {
       document.getElementById('evrak-okunan-metin').value = fullText;
@@ -256,7 +224,7 @@ async function ocrTaramasiBaslat(arrayBuffer) {
     } else { throw new Error("Boş metin"); }
   } catch (err) {
     document.getElementById('ocr-animation').style.display = 'none';
-    ozelUyari("⚠️ Metin Okunamadı (Görsel çok silik veya boş olabilir)");
+    ozelUyari("⚠️ Metin Okunamadı (Görsel silik veya boş olabilir)");
   }
 }
 
@@ -276,12 +244,10 @@ window.modalAc = function(mod, id = null) {
     document.getElementById('evrak-sayisi').value = evrak.evrak_sayisi;
     document.getElementById('evrak-tarihi').value = evrak.evrak_tarihi;
     document.getElementById('evrak-konusu').value = evrak.evrak_konusu;
-    
     document.getElementById('evrak-okunan-metin').value = evrak.okunan_metin || "";
     document.getElementById('ocr-status-area').style.display = 'flex';
     document.getElementById('ocr-text-container').style.display = 'flex';
     document.getElementById('ocr-animation').style.display = 'none';
-    
     dragZone.style.display = 'none'; preview.style.display = 'block';
     window.api.pdfOku(evrak.dosya_yolu).then(s => {
       if(s.basarili) {
@@ -313,17 +279,20 @@ document.getElementById('kaydet-btn').onclick = async () => {
   if (sonuc.basarili) { modalKapat(); await yukle(); } else ozelUyari(sonuc.mesaj); 
 };
 
+// AYARLAR VE RENK ONAY (GÜNCELLEME) BUTONU DÜZENLENDİ
 window.ayarlarModalAc = async function() { document.getElementById('guncel-yol').innerText = "Yol: " + ((await window.api.ayarlariGetir()).arsivYolu || "Seçilmedi"); document.getElementById('setup-kapat-btn').style.display = 'block'; kategoriListesiniCiz(); document.getElementById('setup-overlay').classList.add('show'); }
 window.ayarlarModalKapat = () => document.getElementById('setup-overlay').classList.remove('show');
 
 function kategoriListesiniCiz() { 
   document.getElementById('kategori-listesi').innerHTML = aktifKategoriler.map(k => `
     <div class="kategori-item">
-      <input type="color" value="${k.renk || '#4db8ff'}" id="kat-renk-${k.ad}" style="width:30px; border:none; background:transparent; cursor:pointer;" title="Kategori Rengi">
-      <input type="text" value="${k.ad}" id="kat-input-${k.ad}">
-      <div style="display:flex; gap:5px;">
-        <button class="win-btn" onclick="kategoriGuncelle('${k.ad}')" style="width:auto; padding:0 10px;">💾</button>
-        <button class="win-btn win-close" onclick="kategoriSil('${k.ad}')" style="width:auto; padding:0 10px;">🗑</button>
+      <div title="Rengi Değiştirmek İçin Tıklayın" style="display:flex; align-items:center;">
+        <input type="color" value="${k.renk || '#4db8ff'}" id="kat-renk-${k.ad}">
+      </div>
+      <input type="text" value="${k.ad}" id="kat-input-${k.ad}" style="font-weight:bold;">
+      <div style="display:flex; gap:8px;">
+        <button class="win-btn" onclick="kategoriGuncelle('${k.ad}')" style="width:auto; padding:6px 12px; font-size:12px; font-weight:bold; color:var(--primary); border:1px solid var(--primary);" title="Rengi veya İsmi Kaydet">✔ Güncelle</button>
+        <button class="win-btn win-close" onclick="kategoriSil('${k.ad}')" style="width:auto; padding:6px 12px; font-size:12px; font-weight:bold;" title="Sil">🗑 Sil</button>
       </div>
     </div>`).join(''); 
 }

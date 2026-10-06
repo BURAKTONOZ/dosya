@@ -14,6 +14,17 @@ function getConfig() {
 }
 function setConfig(data) { fs.writeFileSync(configPath, JSON.stringify({ ...getConfig(), ...data })); }
 
+// --- YENİ NESİL AĞ (NETWORK) MİMARİSİ İÇİN AKILLI YOL ÇÖZÜCÜ ---
+function tamYoluGetir(dbYolu) {
+  if (!dbYolu) return "";
+  // Eğer yol "C:\", "Z:\" gibi bir sürücü harfi içeriyorsa veya "\\" ile ağ paylaşımı olarak başlıyorsa (ESKİ KAYITLAR)
+  if (dbYolu.includes(':\\') || dbYolu.startsWith('\\\\')) {
+    return dbYolu;
+  }
+  // Eğer göreceli bir yolsa (YENİ KAYITLAR), mevcut bilgisayarın arşiv yoluyla anında birleştir
+  return path.join(aktifArsivYolu, dbYolu);
+}
+
 function initDB(yol) {
   aktifArsivYolu = yol;
   db = new sqlite3.Database(path.join(yol, 'ndys_veritabani.db'), (err) => {
@@ -104,7 +115,11 @@ ipcMain.handle('kategori-duzenle', async (e, { eskiAd, yeniAd, yeniRenk }) => {
         const yeniYol = path.join(aktifArsivYolu, yil, yeniAd);
         if (yil.length === 4 && fs.existsSync(eskiYol)) fs.renameSync(eskiYol, yeniYol); 
       });
-      evraklar.forEach(evrak => db.run(`UPDATE evraklar SET kategori = ?, dosya_yolu = ? WHERE id = ?`, [yeniAd, evrak.dosya_yolu.replace(`\\${eskiAd}\\`, `\\${yeniAd}\\`), evrak.id]));
+      evraklar.forEach(evrak => {
+        // Eski yolu ve yeni yolu esnek bir şekilde değiştirir
+        let yeniDosyaYolu = evrak.dosya_yolu.replace(`\\${eskiAd}\\`, `\\${yeniAd}\\`).replace(`/${eskiAd}/`, `/${yeniAd}/`);
+        db.run(`UPDATE evraklar SET kategori = ?, dosya_yolu = ? WHERE id = ?`, [yeniAd, yeniDosyaYolu, evrak.id]);
+      });
     }
     db.run(`UPDATE kategoriler SET ad = ?, renk = ? WHERE ad = ?`, [yeniAd, yeniRenk, eskiAd]);
     return { basarili: true };
@@ -113,44 +128,71 @@ ipcMain.handle('kategori-duzenle', async (e, { eskiAd, yeniAd, yeniRenk }) => {
 
 ipcMain.handle('evrak-kaydet', async (e, data) => {
   try {
-    const yil = data.evrakTarihi.split('-')[0], kategoriKlasoru = path.join(aktifArsivYolu, yil, data.kategori);
+    const yil = data.evrakTarihi.split('-')[0];
+    const kategoriKlasoru = path.join(aktifArsivYolu, yil, data.kategori);
     if (!fs.existsSync(path.join(aktifArsivYolu, yil))) fs.mkdirSync(path.join(aktifArsivYolu, yil));
     if (!fs.existsSync(kategoriKlasoru)) fs.mkdirSync(kategoriKlasoru);
-    const yeniPdfYolu = path.join(kategoriKlasoru, `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`);
-    fs.writeFileSync(yeniPdfYolu, Buffer.from(data.pdfBuffer));
+    
+    const dosyaAdi = `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`;
+    
+    // İşletim sistemine dosyayı yazmak için Mutlak Yol kullanılır
+    const mutlakYol = path.join(kategoriKlasoru, dosyaAdi);
+    // Veritabanına taşınabilir olması için GÖRECELİ YOL kaydedilir
+    const goreceliYol = path.join(yil, data.kategori, dosyaAdi); 
+
+    fs.writeFileSync(mutlakYol, Buffer.from(data.pdfBuffer));
     return new Promise((res, rej) => db.run(`INSERT INTO evraklar (evrak_sayisi, evrak_tarihi, evrak_konusu, kategori, kisa_aciklama, dosya_yolu, okunan_metin) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
-      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, "", yeniPdfYolu, data.okunanMetin], err => err ? rej(err.message) : res({ basarili: true })));
+      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, "", goreceliYol, data.okunanMetin], err => err ? rej(err.message) : res({ basarili: true })));
   } catch (err) { return { basarili: false, mesaj: err.message }; }
 });
 
 ipcMain.handle('evrak-guncelle', async (e, data) => {
   try {
     const eski = await new Promise((res, rej) => db.get(`SELECT * FROM evraklar WHERE id = ?`, [data.id], (err, row) => err ? rej(err) : res(row)));
-    let yeniYol = eski.dosya_yolu;
+    
+    let goreceliYol = eski.dosya_yolu;
+    let mutlakYol = tamYoluGetir(eski.dosya_yolu);
+
     if (eski.evrak_tarihi !== data.evrakTarihi || eski.kategori !== data.kategori || eski.evrak_sayisi !== data.evrakSayisi || eski.evrak_konusu !== data.evrakKonusu) {
-      const yil = data.evrakTarihi.split('-')[0], kategoriKlasoru = path.join(aktifArsivYolu, yil, data.kategori);
+      const yil = data.evrakTarihi.split('-')[0];
+      const kategoriKlasoru = path.join(aktifArsivYolu, yil, data.kategori);
+      
       if (!fs.existsSync(path.join(aktifArsivYolu, yil))) fs.mkdirSync(path.join(aktifArsivYolu, yil));
       if (!fs.existsSync(kategoriKlasoru)) fs.mkdirSync(kategoriKlasoru);
-      yeniYol = path.join(kategoriKlasoru, `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`);
-      if (fs.existsSync(eski.dosya_yolu)) fs.renameSync(eski.dosya_yolu, yeniYol);
+      
+      const dosyaAdi = `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`;
+      const yeniMutlakYol = path.join(kategoriKlasoru, dosyaAdi);
+      
+      goreceliYol = path.join(yil, data.kategori, dosyaAdi); // Yeni taşınabilir yol
+      
+      if (fs.existsSync(mutlakYol)) fs.renameSync(mutlakYol, yeniMutlakYol);
     }
     return new Promise((res, rej) => db.run(`UPDATE evraklar SET evrak_sayisi=?, evrak_tarihi=?, evrak_konusu=?, kategori=?, okunan_metin=?, dosya_yolu=? WHERE id=?`, 
-      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, data.okunanMetin, yeniYol, data.id], err => err ? rej(err.message) : res({ basarili: true })));
+      [data.evrakSayisi, data.evrakTarihi, data.evrakKonusu, data.kategori, data.okunanMetin, goreceliYol, data.id], err => err ? rej(err.message) : res({ basarili: true })));
   } catch (err) { return { basarili: false, mesaj: err.code === 'EBUSY' ? "Dosya kullanımda!" : err.message }; }
 });
 
 ipcMain.handle('evrak-sil', async (e, id) => {
   try {
     const evrak = await new Promise(res => db.get(`SELECT dosya_yolu FROM evraklar WHERE id = ?`, [id], (err, row) => res(row)));
-    if (fs.existsSync(evrak.dosya_yolu)) fs.unlinkSync(evrak.dosya_yolu);
+    const mutlakYol = tamYoluGetir(evrak.dosya_yolu); // Gerçek yolu süzgeçten geçirir
+    if (fs.existsSync(mutlakYol)) fs.unlinkSync(mutlakYol);
     return new Promise(res => db.run(`DELETE FROM evraklar WHERE id = ?`, [id], err => res({ basarili: !err, mesaj: err?.message })));
   } catch (err) { return { basarili: false, mesaj: err.code === 'EBUSY' ? "Dosya açık, silinemez." : err.message }; }
 });
 
 ipcMain.handle('evrakleri-getir', () => new Promise(res => db ? db.all("SELECT * FROM evraklar ORDER BY evrak_tarihi DESC", [], (err, rows) => res(err ? [] : rows)) : res([])));
-ipcMain.handle('pdf-oku', async (e, yol) => { try { return { basarili: true, veri: fs.readFileSync(yol).toString('base64') }; } catch (err) { return { basarili: false, mesaj: err.message }; } });
+
+ipcMain.handle('pdf-oku', async (e, yol) => { 
+  try { 
+    const mutlakYol = tamYoluGetir(yol); // Veritabanındaki yolu bilgisayara uyarlar
+    return { basarili: true, veri: fs.readFileSync(mutlakYol).toString('base64') }; 
+  } catch (err) { return { basarili: false, mesaj: err.message }; } 
+});
+
 ipcMain.handle('pdf-disa-aktar', async (e, kaynakYol, onerilenIsim) => {
+  const mutlakYol = tamYoluGetir(kaynakYol); // Veritabanındaki yolu bilgisayara uyarlar
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, { defaultPath: onerilenIsim, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
-  if (!canceled && filePath) { fs.copyFileSync(kaynakYol, filePath); return { basarili: true }; }
+  if (!canceled && filePath) { fs.copyFileSync(mutlakYol, filePath); return { basarili: true }; }
   return { basarili: false };
 });

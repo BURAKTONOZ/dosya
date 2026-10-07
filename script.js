@@ -1,5 +1,43 @@
 const APP_VERSION = "3.0.0";
 
+// --- FIREBASE BAĞLANTISI (BİLGİLERİNİ BURAYA GİR) ---
+const firebaseConfig = {
+  apiKey: "API_KEY_BURAYA",
+  authDomain: "PROJE_ID.firebaseapp.com",
+  databaseURL: "https://PROJE_ID-default-rtdb.firebaseio.com",
+  projectId: "PROJE_ID",
+  storageBucket: "PROJE_ID.appspot.com",
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID"
+};
+
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const merkeziKontrolRef = firebase.database().ref('merkezi_kontrol');
+
+// FIREBASE CANLI DİNLEYİCİ (Şalter ve Versiyon Kontrolü)
+merkeziKontrolRef.on('value', (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
+
+  // 1. Şalter (Kill Switch) Kontrolü
+  if (data.sistem_acik === false) {
+    document.getElementById('kill-message').innerText = data.kapatma_mesaji || "Sistem geçici olarak durdurulmuştur. Lütfen sistem yöneticisi ile iletişime geçin.";
+    document.getElementById('firebase-kill-alert').classList.add('show');
+    return; // Şalter kapalıysa diğer kontrollere gerek yok, sistemi kilitle
+  } else {
+    document.getElementById('firebase-kill-alert').classList.remove('show');
+  }
+
+  // 2. Versiyon Kontrolü (Birebir Eşleşme Şartı: Düşük veya Yüksek Olmasına İzin Verilmez)
+  if (data.guncel_versiyon && data.guncel_versiyon !== APP_VERSION) {
+    document.getElementById('firebase-version-alert').classList.add('show');
+  } else {
+    document.getElementById('firebase-version-alert').classList.remove('show');
+  }
+});
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 let tumEvraklar = [], aktifKategoriler = [], seciliYil = null, seciliKategori = null;
@@ -41,8 +79,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!config.arsivYolu) { document.getElementById('setup-overlay').classList.add('show'); document.getElementById('setup-title').innerText = "İlk Kurulum"; } 
   else { 
     document.getElementById('guncel-yol').innerText = "Yol: " + config.arsivYolu; 
+    
+    // Yerel Veritabanı Versiyon Kontrolü
     const vCheck = await window.api.versiyonKontrol(APP_VERSION);
     if(vCheck.durum === 'eski') { document.getElementById('versiyon-alert').classList.add('show'); return; }
+    
     await yukle(); 
   }
 });
@@ -73,6 +114,15 @@ function agacYapisiniCiz() {
     let subHtml = kats.map(k => `<div class="tree-cat-btn ${seciliYil===yil && seciliKategori===k ? 'active' : ''}" onclick="kategoriTikla('${yil}', '${k}', event)">📄 ${k}</div>`).join('');
     tree.innerHTML += `<div class="tree-item ${seciliYil===yil ? 'open' : ''}"><div class="tree-year-btn" onclick="yilTikla('${yil}')"><span>📅 ${yil}</span><span class="chevron">▼</span></div><div class="tree-sub">${subHtml}</div></div>`;
   });
+}
+
+// TÜM ARŞİVİ GÖSTER FONKSİYONU
+window.tumArsiviGoster = function() {
+  seciliYil = null;
+  seciliKategori = null;
+  document.getElementById('aktif-baslik').innerText = "Tüm Arşiv";
+  agacYapisiniCiz();
+  aramaYap();
 }
 
 window.yilTikla = function(yil) {
@@ -279,7 +329,6 @@ document.getElementById('kaydet-btn').onclick = async () => {
   if (sonuc.basarili) { modalKapat(); await yukle(); } else ozelUyari(sonuc.mesaj); 
 };
 
-// AYARLAR VE RENK ONAY (GÜNCELLEME) BUTONU DÜZENLENDİ
 window.ayarlarModalAc = async function() { document.getElementById('guncel-yol').innerText = "Yol: " + ((await window.api.ayarlariGetir()).arsivYolu || "Seçilmedi"); document.getElementById('setup-kapat-btn').style.display = 'block'; kategoriListesiniCiz(); document.getElementById('setup-overlay').classList.add('show'); }
 window.ayarlarModalKapat = () => document.getElementById('setup-overlay').classList.remove('show');
 

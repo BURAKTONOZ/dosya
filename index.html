@@ -4,8 +4,14 @@
   <meta charset="UTF-8">
   <title>NDYS v3.0</title>
   <link rel="stylesheet" href="style.css">
+  
+  <!-- PDF VE OCR MOTORLARI -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  
+  <!-- FIREBASE MERKEZİ YÖNETİM SDK'LARI (V8) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body class="dark-mode">
 
@@ -38,6 +44,12 @@
   <div id="workspace">
     <nav class="solid-module left-menu">
       <div class="menu-title">📂 Klasör Dizini</div>
+      
+      <!-- TÜM YILLAR / TÜM ARŞİV BUTONU -->
+      <div style="padding: 0 15px 10px 15px; border-bottom: 1px solid var(--border); margin-bottom: 10px;">
+        <button class="action-btn" style="width: 100%; background: var(--bg-light); color: var(--text-main); border: 1px solid var(--border); box-shadow: none;" onclick="tumArsiviGoster()">🌍 Tüm Arşivi Göster</button>
+      </div>
+      
       <div id="tree-menu" class="tree-menu"></div>
       <div class="left-bottom-actions">
         <button class="action-btn highlight" onclick="modalAc('yeni')">➕ Yeni Evrak Ekle</button>
@@ -69,6 +81,7 @@
 
   <button id="ctx-disa-aktar" style="display:none;"></button>
 
+  <!-- YENİ/DÜZENLE MODALI -->
   <div id="modal-overlay" class="overlay">
     <div class="modal-box">
       <div class="modal-form">
@@ -137,14 +150,39 @@
     </div>
   </div>
 
+  <!-- YEREL UYARI PENCERELERİ -->
   <div id="custom-alert" class="overlay"><div class="setup-box" style="width: 350px; text-align:center;"><h2>Bilgi</h2><p id="alert-message" style="margin-bottom: 25px;"></p><button class="submit-btn" onclick="document.getElementById('custom-alert').classList.remove('show')">Tamam</button></div></div>
   <div id="custom-confirm" class="overlay"><div class="setup-box" style="width: 350px; text-align:center;"><h2>Emin misiniz?</h2><p id="confirm-message" style="margin-bottom: 25px;"></p><div class="setup-buttons"><button class="submit-btn" id="confirm-yes">Evet</button><button class="modal-close-btn" onclick="document.getElementById('custom-confirm').classList.remove('show')">İptal</button></div></div></div>
 
+  <!-- YEREL DB ZORUNLU VERSİYON UYARISI -->
   <div id="versiyon-alert" class="overlay"><div class="setup-box" style="width: 400px; text-align:center; border-color:#e74c3c; box-shadow:0 0 50px rgba(231,76,60,0.3);">
-    <h2 style="color:#e74c3c;">⚠️️ Güncelleme Gerekli</h2>
+    <h2 style="color:#e74c3c;">⚠️ Güncelleme Gerekli</h2>
     <p style="margin-bottom: 25px; line-height:1.5;">Sistemde daha güncel bir versiyon tespit edildi.<br>Veri bütünlüğünü korumak için lütfen mevcut programı silin ve yeni versiyonu kurun.</p>
     <button class="submit-btn" style="background:#e74c3c;" onclick="window.api.forceQuit()">Anladım, Kapat</button>
   </div></div>
+
+  <!-- FIREBASE 1: ŞALTER (KILL SWITCH) EKRANI (Kapatılamaz, siyah/kırmızı tema) -->
+  <div id="firebase-kill-alert" class="overlay" style="z-index: 9999; background: rgba(0,0,0,0.95);">
+    <div class="setup-box" style="width: 450px; text-align:center; border: 2px solid #e74c3c; box-shadow: 0 0 50px rgba(231,76,60,0.5); background:#1e1e24;">
+      <h2 style="color:#e74c3c; font-size: 24px;">⛔ Sistem Kilitli</h2>
+      <p id="kill-message" style="margin-bottom: 25px; line-height:1.6; font-size:14px; color:#f0f0f5;">
+        <!-- Firebase'den gelen şalter mesajı buraya yazılacak -->
+      </p>
+      <button class="submit-btn" style="background:#e74c3c; width:100%; font-size:16px;" onclick="window.api.forceQuit()">Sistemi Kapat</button>
+    </div>
+  </div>
+
+  <!-- FIREBASE 2: SÜRÜM UYUŞMAZLIĞI EKRANI (Düşük veya yüksek versiyonda çıkar, kapatılamaz) -->
+  <div id="firebase-version-alert" class="overlay" style="z-index: 9998; background: rgba(0,0,0,0.9);">
+    <div class="setup-box" style="width: 450px; text-align:center; border: 2px solid #f1c40f; box-shadow: 0 0 50px rgba(241,196,15,0.3); background:#1e1e24;">
+      <h2 style="color:#f1c40f; font-size: 24px;">⚠️ Sürüm Uyuşmazlığı</h2>
+      <p style="margin-bottom: 25px; line-height:1.6; font-size:14px; color:#f0f0f5;">
+        Sistemde uyumsuz / güncel olmayan bir versiyon kullanıyorsunuz.<br><br>
+        Güvenlik ve veri bütünlüğü sebebiyle bu versiyonla işleme devam edilemez. Lütfen mevcut programı silerek güncel versiyonu yükleyin.
+      </p>
+      <button class="submit-btn" style="background:#f1c40f; color:#000; width:100%; font-size:16px; font-weight:bold;" onclick="window.api.forceQuit()">Anladım, Kapat</button>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>

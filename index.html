@@ -81,7 +81,6 @@
 
   <button id="ctx-disa-aktar" style="display:none;"></button>
 
-  <!-- YENİ/DÜZENLE MODALI -->
   <div id="modal-overlay" class="overlay">
     <div class="modal-box">
       <div class="modal-form">
@@ -126,7 +125,6 @@
     </div>
   </div>
 
-  <!-- AYARLAR VE RENK SEÇİCİ -->
   <div id="setup-overlay" class="overlay">
     <div class="setup-box" style="width: 550px;">
       <h2 id="setup-title">Sistem Ayarları</h2>
@@ -135,7 +133,6 @@
       
       <div class="settings-section">
         <h3>Kategori Yönetimi</h3>
-        <!-- Yeni Kategori Ekleme Alanı -->
         <div style="display:flex; gap:10px; margin-bottom: 20px; align-items:center;">
           <input type="color" id="yeni-kategori-renk" value="#4db8ff" title="Renk Seç">
           <input type="text" id="yeni-kategori-input" placeholder="Yeni kategori adı yazın..." style="flex:1; font-size:14px;">
@@ -143,7 +140,6 @@
         </div>
         <div id="kategori-listesi"></div>
       </div>
-      
       <div class="setup-buttons" style="margin-top: 20px;">
         <button class="modal-close-btn" id="setup-kapat-btn" onclick="ayarlarModalKapat()" style="display:none;">Kapat</button>
       </div>
@@ -165,14 +161,12 @@
   <div id="firebase-kill-alert" class="overlay" style="z-index: 9999; background: rgba(0,0,0,0.95);">
     <div class="setup-box" style="width: 450px; text-align:center; border: 2px solid #e74c3c; box-shadow: 0 0 50px rgba(231,76,60,0.5); background:#1e1e24;">
       <h2 style="color:#e74c3c; font-size: 24px;">⛔ Sistem Kilitli</h2>
-      <p id="kill-message" style="margin-bottom: 25px; line-height:1.6; font-size:14px; color:#f0f0f5;">
-        <!-- Firebase'den gelen şalter mesajı buraya yazılacak -->
-      </p>
+      <p id="kill-message" style="margin-bottom: 25px; line-height:1.6; font-size:14px; color:#f0f0f5;"></p>
       <button class="submit-btn" style="background:#e74c3c; width:100%; font-size:16px;" onclick="window.api.forceQuit()">Sistemi Kapat</button>
     </div>
   </div>
 
-  <!-- FIREBASE 2: SÜRÜM UYUŞMAZLIĞI EKRANI (Düşük veya yüksek versiyonda çıkar, kapatılamaz) -->
+  <!-- FIREBASE 2: SÜRÜM UYUŞMAZLIĞI EKRANI (Kapatılamaz) -->
   <div id="firebase-version-alert" class="overlay" style="z-index: 9998; background: rgba(0,0,0,0.9);">
     <div class="setup-box" style="width: 450px; text-align:center; border: 2px solid #f1c40f; box-shadow: 0 0 50px rgba(241,196,15,0.3); background:#1e1e24;">
       <h2 style="color:#f1c40f; font-size: 24px;">⚠️ Sürüm Uyuşmazlığı</h2>

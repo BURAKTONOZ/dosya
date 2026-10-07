@@ -14,14 +14,11 @@ function getConfig() {
 }
 function setConfig(data) { fs.writeFileSync(configPath, JSON.stringify({ ...getConfig(), ...data })); }
 
-// --- YENİ NESİL AĞ (NETWORK) MİMARİSİ İÇİN AKILLI YOL ÇÖZÜCÜ ---
 function tamYoluGetir(dbYolu) {
   if (!dbYolu) return "";
-  // Eğer yol "C:\", "Z:\" gibi bir sürücü harfi içeriyorsa veya "\\" ile ağ paylaşımı olarak başlıyorsa (ESKİ KAYITLAR)
   if (dbYolu.includes(':\\') || dbYolu.startsWith('\\\\')) {
     return dbYolu;
   }
-  // Eğer göreceli bir yolsa (YENİ KAYITLAR), mevcut bilgisayarın arşiv yoluyla anında birleştir
   return path.join(aktifArsivYolu, dbYolu);
 }
 
@@ -116,7 +113,6 @@ ipcMain.handle('kategori-duzenle', async (e, { eskiAd, yeniAd, yeniRenk }) => {
         if (yil.length === 4 && fs.existsSync(eskiYol)) fs.renameSync(eskiYol, yeniYol); 
       });
       evraklar.forEach(evrak => {
-        // Eski yolu ve yeni yolu esnek bir şekilde değiştirir
         let yeniDosyaYolu = evrak.dosya_yolu.replace(`\\${eskiAd}\\`, `\\${yeniAd}\\`).replace(`/${eskiAd}/`, `/${yeniAd}/`);
         db.run(`UPDATE evraklar SET kategori = ?, dosya_yolu = ? WHERE id = ?`, [yeniAd, yeniDosyaYolu, evrak.id]);
       });
@@ -134,10 +130,7 @@ ipcMain.handle('evrak-kaydet', async (e, data) => {
     if (!fs.existsSync(kategoriKlasoru)) fs.mkdirSync(kategoriKlasoru);
     
     const dosyaAdi = `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`;
-    
-    // İşletim sistemine dosyayı yazmak için Mutlak Yol kullanılır
     const mutlakYol = path.join(kategoriKlasoru, dosyaAdi);
-    // Veritabanına taşınabilir olması için GÖRECELİ YOL kaydedilir
     const goreceliYol = path.join(yil, data.kategori, dosyaAdi); 
 
     fs.writeFileSync(mutlakYol, Buffer.from(data.pdfBuffer));
@@ -149,7 +142,6 @@ ipcMain.handle('evrak-kaydet', async (e, data) => {
 ipcMain.handle('evrak-guncelle', async (e, data) => {
   try {
     const eski = await new Promise((res, rej) => db.get(`SELECT * FROM evraklar WHERE id = ?`, [data.id], (err, row) => err ? rej(err) : res(row)));
-    
     let goreceliYol = eski.dosya_yolu;
     let mutlakYol = tamYoluGetir(eski.dosya_yolu);
 
@@ -162,8 +154,7 @@ ipcMain.handle('evrak-guncelle', async (e, data) => {
       
       const dosyaAdi = `${data.evrakTarihi}_${data.evrakSayisi}_${data.evrakKonusu.replace(/[/\\?%*:|"<>]/g, '-')}_${Date.now()}.pdf`;
       const yeniMutlakYol = path.join(kategoriKlasoru, dosyaAdi);
-      
-      goreceliYol = path.join(yil, data.kategori, dosyaAdi); // Yeni taşınabilir yol
+      goreceliYol = path.join(yil, data.kategori, dosyaAdi); 
       
       if (fs.existsSync(mutlakYol)) fs.renameSync(mutlakYol, yeniMutlakYol);
     }
@@ -175,7 +166,7 @@ ipcMain.handle('evrak-guncelle', async (e, data) => {
 ipcMain.handle('evrak-sil', async (e, id) => {
   try {
     const evrak = await new Promise(res => db.get(`SELECT dosya_yolu FROM evraklar WHERE id = ?`, [id], (err, row) => res(row)));
-    const mutlakYol = tamYoluGetir(evrak.dosya_yolu); // Gerçek yolu süzgeçten geçirir
+    const mutlakYol = tamYoluGetir(evrak.dosya_yolu);
     if (fs.existsSync(mutlakYol)) fs.unlinkSync(mutlakYol);
     return new Promise(res => db.run(`DELETE FROM evraklar WHERE id = ?`, [id], err => res({ basarili: !err, mesaj: err?.message })));
   } catch (err) { return { basarili: false, mesaj: err.code === 'EBUSY' ? "Dosya açık, silinemez." : err.message }; }
@@ -185,13 +176,13 @@ ipcMain.handle('evrakleri-getir', () => new Promise(res => db ? db.all("SELECT *
 
 ipcMain.handle('pdf-oku', async (e, yol) => { 
   try { 
-    const mutlakYol = tamYoluGetir(yol); // Veritabanındaki yolu bilgisayara uyarlar
+    const mutlakYol = tamYoluGetir(yol); 
     return { basarili: true, veri: fs.readFileSync(mutlakYol).toString('base64') }; 
   } catch (err) { return { basarili: false, mesaj: err.message }; } 
 });
 
 ipcMain.handle('pdf-disa-aktar', async (e, kaynakYol, onerilenIsim) => {
-  const mutlakYol = tamYoluGetir(kaynakYol); // Veritabanındaki yolu bilgisayara uyarlar
+  const mutlakYol = tamYoluGetir(kaynakYol); 
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, { defaultPath: onerilenIsim, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (!canceled && filePath) { fs.copyFileSync(mutlakYol, filePath); return { basarili: true }; }
   return { basarili: false };

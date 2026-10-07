@@ -1,16 +1,18 @@
 const APP_VERSION = "3.0.0";
 
-// --- FIREBASE BAĞLANTISI (BİLGİLERİNİ BURAYA GİR) ---
+// SANA AİT FIREBASE YAPILANDIRMASI
 const firebaseConfig = {
-  apiKey: "API_KEY_BURAYA",
-  authDomain: "PROJE_ID.firebaseapp.com",
-  databaseURL: "https://PROJE_ID-default-rtdb.firebaseio.com",
-  projectId: "PROJE_ID",
-  storageBucket: "PROJE_ID.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
+  apiKey: "AIzaSyCCblmn9t1FlBwXBd7ipFoOFk-QrgOn_0Q",
+  authDomain: "dosya-yonetim.firebaseapp.com",
+  databaseURL: "https://dosya-yonetim-default-rtdb.firebaseio.com",
+  projectId: "dosya-yonetim",
+  storageBucket: "dosya-yonetim.firebasestorage.app",
+  messagingSenderId: "1025802448821",
+  appId: "1:1025802448821:web:e53c14648c5add604073fc",
+  measurementId: "G-W2TWZXC9DQ"
 };
 
+// FIREBASE BAŞLATMA
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
@@ -25,12 +27,12 @@ merkeziKontrolRef.on('value', (snapshot) => {
   if (data.sistem_acik === false) {
     document.getElementById('kill-message').innerText = data.kapatma_mesaji || "Sistem geçici olarak durdurulmuştur. Lütfen sistem yöneticisi ile iletişime geçin.";
     document.getElementById('firebase-kill-alert').classList.add('show');
-    return; // Şalter kapalıysa diğer kontrollere gerek yok, sistemi kilitle
+    return; 
   } else {
     document.getElementById('firebase-kill-alert').classList.remove('show');
   }
 
-  // 2. Versiyon Kontrolü (Birebir Eşleşme Şartı: Düşük veya Yüksek Olmasına İzin Verilmez)
+  // 2. Versiyon Kontrolü (Düşük veya yüksek ise kilitler)
   if (data.guncel_versiyon && data.guncel_versiyon !== APP_VERSION) {
     document.getElementById('firebase-version-alert').classList.add('show');
   } else {
@@ -79,11 +81,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!config.arsivYolu) { document.getElementById('setup-overlay').classList.add('show'); document.getElementById('setup-title').innerText = "İlk Kurulum"; } 
   else { 
     document.getElementById('guncel-yol').innerText = "Yol: " + config.arsivYolu; 
-    
-    // Yerel Veritabanı Versiyon Kontrolü
     const vCheck = await window.api.versiyonKontrol(APP_VERSION);
     if(vCheck.durum === 'eski') { document.getElementById('versiyon-alert').classList.add('show'); return; }
-    
     await yukle(); 
   }
 });
@@ -116,7 +115,6 @@ function agacYapisiniCiz() {
   });
 }
 
-// TÜM ARŞİVİ GÖSTER FONKSİYONU
 window.tumArsiviGoster = function() {
   seciliYil = null;
   seciliKategori = null;
